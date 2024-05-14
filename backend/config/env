@@ -1,0 +1,7 @@
+# .env
+DATABASE_USER_NAME="admin"
+DATABASE_SECRET_KEY="password"
+DATABASE_NAME="datalink"
+DATABASE_URL="http://plc-datalink-rfc1006-database:5984"
+
+

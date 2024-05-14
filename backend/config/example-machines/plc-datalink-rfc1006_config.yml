@@ -1,0 +1,71 @@
+mqtt_broker: 
+  broker_ip: 192.168.4.172
+  broker_port: 1883
+  keep_alive: 10
+  retry_time: 5
+  max_retry_time: 60
+  plc_datalink_topic: "devboard/plc_datalink/"
+plc:
+  - ip: 192.168.4.100
+  - port: 102
+  - rack: 0
+  - slot: 1
+scaninterval:
+  - seconds: 3
+plctags:
+  - name: Bool_Value
+    address: DB2000,BOOL0.0
+  - name: Byte_Value
+    address: DB2000,BYTE1.0
+  - name: Char_Value
+    address: DB2000,CHAR2.0
+  - name: Word_Value
+    address: DB2000,WORD4.0
+  - name: Int_Value
+    address: DB2000,INT6.0
+    transformation:
+      type: add #add subtract divide multiply
+      value: 12345
+  - name: Dword_Value
+    address: DB2000,DWORD8.0
+    transformation:
+      type: divide #add subtract divide multiply
+      value: 2.5
+  - name: Dint_Value
+    address: DB2000,DINT12.0
+  - name: Real_Value
+    address: DB2000,REAL16.0
+  - name: Usint_Value
+    address: DB2000,USINT558.0
+  - name: Sint_Value
+    address: DB2000,SINT559.0
+  - name: Uint_Value
+    address: DB2000,UINT560.0
+  - name: String_Value
+    address: DB2000,STRING30.0
+    value_length: 11 # for string with spaces: "Hello World"
+  - name: Wstring_Value
+    address: DB2000,WSTRING562.0
+    value_length: 10 # for wstring: WsTrInG&`#
+  - name: Array_Of_Int_Value
+    address: DB2000,ARRAYINT286.0
+    value_length: 5 # for array with 5 int elements
+  - name: Date_Value
+    address: DB2000,DATE20.0
+  - name: Time_Of_Day_Value
+    address: DB2000,DAYTIME22.0
+  - name: Time_Value
+    address: DB2000,TIME26.0
+
+# # not implemented
+#     - name: Struct_Value
+#       fields:
+#         - name: int_value
+#           address: DB2000,DINT296.0
+#         - name: real_value
+#           address: DB2000,REAL298.0
+#         - name: string_value
+#           address: DB2000,STRING302.0
+#           value_length: 18
+
+

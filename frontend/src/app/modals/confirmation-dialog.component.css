@@ -1,0 +1,33 @@
+.custom-modal {
+    position: fixed; /* Fixed position relative to the viewport */
+    top: 50%; /* Center vertically */
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, -50%); /* Adjust position to the exact center */
+    z-index: 1050; /* Ensure it's on top of other content */
+    width: 50%; /* Set the width of the modal */
+    max-width: 400px; /* Maximum width */
+    background-color: white; /* Background color */
+    padding: 10px; /* Padding inside the modal */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Shadow for better visibility */
+    border-radius: 0px; /* Rounded corners */
+  }
+  
+  
+  .my-button{
+    font-size: 10px;
+    float: right;
+    padding: 0px;
+    margin: 5px;
+    height: 35px;
+    width: 70px;
+  }
+
+  /* Additional styles for buttons and other elements inside the modal */
+  .modal-content button {
+    margin: 5px; /* Space above the button */
+    padding: 10px 20px; /* Padding inside the button */
+    font-size: 16px; /* Button text size */
+    cursor: pointer; /* Cursor pointer to indicate clickable */
+    border: none; /* Remove border */
+    border-radius: 5px; /* Rounded corners for the button */
+  }

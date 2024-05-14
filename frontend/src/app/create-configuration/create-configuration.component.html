@@ -1,0 +1,159 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="form-container-base">
+    <h2>Create Configuration</h2>
+    <div style="border-bottom: 4px solid rgb(35, 142, 168); margin: 20px 0;"></div>
+    <div formGroupName="machineData" class="form-section form-shadow form-container">
+        <div class="row">
+            <!-- Machine Name -->
+            <div class="col-xs-7">
+                <label for="machineName">Machine Name</label>
+                <input type="text" id="machineName" class="form-control" formControlName="machineName" aria-describedby="machineNameHelp">
+                <div id="machineNameHelp" class="form-text text-muted help-txt">Enter the name of the machine.</div>
+                <div *ngIf="form.get('machineData.machineName').invalid && form.get('machineData.machineName').touched" class="text-danger"> Enter a valid Machine Name.</div>
+            </div>
+            <!-- PLC IP Address -->
+            <div class="col-xs-3">
+                <label for="plcIp">PLC IP Address</label>
+                <input type="text" id="plcIp" class="form-control" formControlName="plcIp" aria-describedby="plcIpHelp">
+                <div id="plcIpHelp" class="form-text text-muted help-txt">Enter the plc ip (IPv4).</div>
+                <div *ngIf="form.get('machineData.plcIp').errors?.required && form.get('machineData.plcIp').touched" class="text-danger">IP address is required.</div>
+                <div *ngIf="form.get('machineData.plcIp').errors?.pattern && form.get('machineData.plcIp').touched" class="text-danger">Enter a valid PLC IP address (IPv4).</div>
+            </div>
+            <!-- PLC Port -->
+            <div class="col-xs-2">
+                <label for="plcPort">PLC Port</label>
+                <input type="number" id="plcPort" class="form-control" formControlName="plcPort" aria-describedby="plcPortHelp">
+                <div id="plcPortHelp" class="form-text text-muted help-txt">Enter the plc port, default is 102.</div>
+                <div *ngIf="form.get('machineData.plcPort').errors?.required && form.get('machineData.plcPort').touched" class="text-danger">Port is required.</div>
+                <div *ngIf="(form.get('machineData.plcPort').errors?.min || form.get('machineData.plcPort').errors?.max) && form.get('machineData.plcPort').touched" class="text-danger"> Enter a valid PLC Port (1-65535).</div>
+            </div>
+        </div>
+        <div class="row">
+            <!-- PLC Rack -->
+            <div class="col-xs-3">
+                <label for="plcRack">PLC Rack</label>
+                <input type="number" id="plcRack" class="form-control" formControlName="plcRack" aria-describedby="plcRackHelp">
+                <div id="plcRackHelp" class="form-text text-muted help-txt">Enter the plc rack number (0-100).</div>
+                <div *ngIf="form.get('machineData.plcRack').errors?.required && form.get('machineData.plcRack').touched" class="text-danger">Rack number is required.</div>
+                <div *ngIf="(form.get('machineData.plcRack').errors?.min || form.get('machineData.plcRack').errors?.max) && form.get('machineData.plcRack').touched" class="text-danger">Enter a valid PLC Rack number (0-100).</div>
+            </div>
+            <!-- PLC Slot -->
+            <div class="col-xs-3">
+                <label for="plcSlot">PLC Slot</label>
+                <input type="number" id="plcSlot" class="form-control" formControlName="plcSlot"aria-describedby="plcSlotHelp">
+                <div id="plcSlotHelp" class="form-text text-muted help-txt">Enter the plc slot number (0-18).</div>
+                <div *ngIf="form.get('machineData.plcSlot').errors?.required && form.get('machineData.plcSlot').touched" class="text-danger">Slot number is required.</div>
+                <div *ngIf="(form.get('machineData.plcSlot').errors?.min || form.get('machineData.plcSlot').errors?.max) && form.get('machineData.plcSlot').touched" class="text-danger">Enter a valid PLC Slot number (0-18).</div>
+            </div>
+            <!-- Request Batch Size -->
+            <div class="col-xs-3">
+                <label for="pduSize">Request Batch Size</label>
+                <input type="number" id="pduSize" class="form-control" formControlName="pduSize" aria-describedby="pduSizeHelp">
+                <div id="pduSizeHelp" class="form-text text-muted help-txt">Enter the request batch size.</div>
+                <div *ngIf="form.get('machineData.pduSize').errors?.required && form.get('machineData.pduSize').touched" class="text-danger">
+                    Request batch size is required.
+                </div>
+                <div *ngIf="form.get('machineData.pduSize').errors?.pattern && form.get('machineData.pduSize').touched" class="text-danger">
+                    Enter a valid request batch size.
+                </div>
+            </div>
+            <!-- Request Interval -->
+            <div class="col-xs-3">
+                <label for="requestInterval">Request Interval in Sec</label>
+                <input type="number" id="requestInterval" class="form-control " formControlName="requestInterval" aria-describedby="requestIntervalSizeHelp">
+                <div id="requestIntervalSizeHelp" class="form-text text-muted help-txt">Enter the request interval.</div>
+                <div *ngIf="form.get('machineData.requestInterval').errors?.required && form.get('machineData.requestInterval').touched" class="text-danger">
+                    Request interval is required.
+                </div>
+                <div *ngIf="form.get('machineData.requestInterval').errors?.pattern && form.get('machineData.requestInterval').touched" class="text-danger">
+                    Enter a valid request interval.
+                </div>
+            </div>
+        </div>
+    </div>
+    <div formGroupName="mqttData" class="form-section form-shadow form-container">
+        <div class="row">
+            <!-- MQTT Topic -->
+            <div class="col-xs-7">
+                <label for="mqttTopic">MQTT Topic</label>
+                <input type="text" id="mqttTopic" class="form-control" formControlName="mqttTopic" aria-describedby="mqttTopicHelp">
+                <div id="mqttTopicHelp" class="form-text text-muted help-txt">Enter the topic name.</div>
+                <div *ngIf="form.get('mqttData.mqttTopic').invalid && form.get('mqttData.mqttTopic').touched" class="text-danger"> Enter a valid Topic Name.</div>
+            </div>
+            <!-- MQTT IP Address -->
+            <div class="col-xs-3">
+                <label for="mqttIp">MQTT IP Address</label>
+                <input type="text" id="mqttIp" class="form-control" formControlName="mqttIp" aria-describedby="mqttIpHelp">
+                <div id="mqttIpHelp" class="form-text text-muted help-txt">Enter the mqtt ip address (IPv4).</div>
+                <div *ngIf="form.get('mqttData.mqttIp').errors?.required && form.get('mqttData.mqttIp').touched" class="text-danger">
+                    IP address is required.
+                </div>
+                <div *ngIf="form.get('mqttData.mqttIp').errors?.pattern && form.get('mqttData.mqttIp').touched" class="text-danger">
+                    Enter a valid MQTT IP address (IPv4).
+                </div>
+            </div>
+            <!-- MQTT Port -->
+            <div class="col-xs-2">
+                <label for="mqttPort">MQTT Port</label>
+                <input type="number" id="mqttPort" class="form-control" formControlName="mqttPort" aria-describedby="mqttPortHelp">
+                <div id="mqttPortHelp" class="form-text text-muted help-txt">Enter the mqtt port.</div>
+                <div *ngIf="form.get('mqttData.mqttPort').errors?.required && form.get('mqttData.mqttPort').touched" class="text-danger">
+                    Port number is required.
+                </div>
+                <div *ngIf="form.get('mqttData.mqttPort').errors?.pattern && form.get('mqttData.mqttPort').touched" class="text-danger">
+                    Enter a valid MQTT Port.
+                </div>
+            </div>
+        </div>            
+    </div>
+    <div formArrayName="plcTagData" class="form-section form-shadow form-container">
+        <h4>PLC Tags</h4>
+        <div *ngFor="let tag of plcTagData.controls; let i = index" [formGroupName]="i">
+            <div class="row"> 
+                <div class="col-xs-5">
+                    <label for="tagName">Tag Name</label>
+                    <input class="form-control " type="text" formControlName="tagName" placeholder="Tag Name" aria-describedby="tagNameHelp">
+                    <div id="tagNameHelp" class="form-text text-muted help-txt">Enter the tag name.</div>
+                    <div *ngIf="tag.get('tagName').errors?.required && tag.get('tagName').touched" class="text-danger">
+                        Tag Name is required
+                    </div>
+                    <div *ngIf="tag.get('tagName').errors?.pattern && tag.get('tagName').touched" class="text-danger">
+                        Enter a valid Tag name, allowed: uppercase and lowercase letters with numbers
+                    </div>                                        
+                </div>
+                <div class="col-xs-3">
+                    <label for="tagAddress">Tag Address</label>
+                    <input class="form-control " type="text" formControlName="tagAddress" placeholder="Tag Address" aria-describedby="tagAddressHelp">
+                    <div id="tagAddressHelp" class="form-text text-muted help-txt">Enter the tag address.</div>
+                    <div *ngIf="tag.get('tagAddress').errors?.required && tag.get('tagAddress').touched" class="text-danger">
+                        Tag Address is required
+                    </div>
+                    <div *ngIf="tag.get('tagAddress').errors?.pattern && tag.get('tagAddress').touched" class="text-danger">
+                        Tag Address is required.
+                    </div>
+                    <div *ngIf="tag.get('tagAddress').errors?.pattern && tag.get('tagAddress').touched" class="text-danger">
+                        Enter a valid Tag Address, like: DB2000.R16 or DB47.S30.13
+                    </div>
+                    <button class="btn btn-danger delete-tag-button" type="button" (click)="onRemoveTag(i)">Delete</button>
+                </div>                    
+            </div>                 
+        </div>
+        <button class="btn btn-success add-tag-button" type="button" (click)="onAddTag()">+1 Tag</button>            
+    </div>
+    <div class="row">
+        <div class="col-xs-12">                
+            <button class="btn btn-primary submit-conf-button" type="submit">Submit</button>
+        </div>
+    </div>
+  </form>
+
+  <!-- Toast Notification -->
+<div class="toast-notification success" *ngIf="submissionState.success" [@fadeOut]="submissionState.success ? 'active' : 'inactive'">
+    <span class="toast-icon">✓</span>
+    <div class="toast-message">{{ toastNotifyMessage }}</div>
+  </div>
+
+<!-- Error Toast Notification -->
+<div class="toast-notification error" *ngIf="submissionState.error" [@fadeOut]="submissionState.error ? 'active' : 'inactive'">
+    <span class="toast-icon">⚠️</span>
+    <div class="toast-message">{{ toastNotifyMessage }}</div>
+  </div>

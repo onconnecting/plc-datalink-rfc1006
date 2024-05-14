@@ -1,0 +1,238 @@
+/* Adjust the spacing and padding for the overall form */
+form {
+  padding: 0;
+}
+
+.form-container-base {
+  max-width: 1200px;
+  margin-left: 10px;
+  margin-right: auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  background: white;
+}
+
+.form-container {
+  max-width: 900px;
+  margin-left: 10px;
+  margin-right: auto;
+  margin-bottom: 20px; /* Adds spacing between machine cards */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Adds shadow for each card */
+  padding: 10px;
+  background: white;
+}
+
+.form-section {
+  margin-bottom: 20px;
+  padding: 5px;
+  background-color: rgba(35, 142, 168, 0.1);
+}
+
+.machine-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px; /* Adjust the gap between columns as needed */
+  margin-bottom: 20px;
+}
+
+.machine-card {
+  padding: 16px;
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 0px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+/* Flexbox layout for machine information and buttons */
+.machine-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.machine-data-card {
+  flex: 1;
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 0px;
+  padding: 16px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.machine-data-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.machine-buttons-card {
+  flex: 0 0 180px; /* Set the fixed width of the right column */
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 0px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Flex styles for buttons to keep them consistent */
+.machine-buttons {
+  display: flex;
+  flex-direction: column; /* Stack buttons vertically */
+  gap: 10px;
+}
+
+.machine-buttons button {
+  width: 80px; /* Adjust width to fit your desired size */
+  height: 35px; /* Adjust height as needed */
+  cursor: pointer;
+}
+.connected {
+  color: green;
+}
+
+.disconnected {
+  color: red;
+}
+
+label {
+  display: block;
+  margin-top: 5px;
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+.input-field {
+  width: calc(100% - 20px);
+  max-width: 100%;
+  margin-bottom: 5px;
+}
+
+.help-txt {
+  font-size: 8px;
+}
+
+input.ng-invalid.ng-touched,
+select.ng-invalid.ng-touched {
+  border: 1px solid red;
+}
+
+.add-tag-button {
+  float: right;
+  height: 30px;
+  width: 90px;
+  margin-top: -45px;
+  margin-right: 90px;
+}
+
+.delete-tag-button {
+  font-size: 10px;
+  float: right;
+  height: 15px;
+  width: 45px;
+  margin-top: -10px;
+}
+
+.submit-conf-button {
+  float: right;
+  height: 40px;
+  width: 120px;
+  background-color: rgb(35, 142, 168);
+  margin-bottom: 5px;
+}
+
+/* Toast Notification Styles */
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1050;
+  border: 1px solid #28a745;
+  background-color: white;
+  padding: 16px 24px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+  border-radius: 0px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideIn 0.5s;
+}
+
+.config-details {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.section {
+  margin-bottom: 10px;
+}
+
+.section h5 {
+  color: #333;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.section p {
+  font-size: 14px;
+  margin: 5px 0;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 5px;
+}
+
+.label {
+  color: #333;
+  width: 80px;
+  text-align: left; 
+  margin-right: 5px;
+  font-size: 14px; 
+}
+
+.value {
+  flex-grow: 1;
+}
+
+.toast-notification.success {
+  border-color: #28a745;
+  color: #155724;
+  background-color: #d4edda;
+}
+
+.toast-notification.error {
+  border-color: #dc3545;
+  color: #721c24;
+  background-color: #f8d7da;
+}
+
+.toast-icon {
+  display: inline-block;
+  font-size: 1.5rem;
+}
+
+.toast-message {
+  flex-grow: 1;
+  font-size: 1rem;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+  }
+}

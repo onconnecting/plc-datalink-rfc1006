@@ -1,0 +1,81 @@
+<div class="form-container-base">
+  <h2>PLC Overview</h2>
+  <div style="border-bottom: 4px solid rgb(35, 142, 168); margin: 20px 0;"></div>
+
+  <!-- Iterate over each machine to create separate form-container classes -->
+  <div *ngFor="let machine of machineStates" class="form-container">
+    <!-- Single machine card -->
+    <div (click)="toggleMachineConfig(machine.name)" class="machine-info machine-card">
+      <div class="machine-content">
+        <!-- Machine details on the left -->
+        <div class="machine-info">
+          <h3>{{ machine.name }}</h3>
+          <p>Status: <span [class.connected]="machine.state.State.active_connection">
+            {{ machine.state.State.active_connection ? 'Connected' : 'Disconnected' }}
+          </span></p>
+          <p>Updated: {{ machine.state.State.last_update || 'N/A' }}</p>
+        </div>
+
+        <!-- Action buttons aligned to the right -->
+        <div class="machine-buttons">
+          <button class="btn btn-danger" (click)="onRemoveMachine(machine.name, $event)">Remove</button>          
+          <button class="btn btn-warning" (click)="onStopMachine(machine.name, $event)">Stop</button>
+          <button class="btn btn-success" (click)="onStartMachine(machine.name, $event)">Start</button>          
+        </div>
+      </div>
+
+      <div [@slideDown]="expandedMachine === machine.name ? 'expanded' : 'collapsed'" class="machine-details">
+        <ng-container *ngIf="expandedMachine === machine.name && machineConfig">
+          <h4>Configuration Details</h4>
+          <div class="config-details">
+            <div class="section">
+              <h5>Machine Data</h5>
+              <div class="info-row">
+                <span class="label">Machine:</span>
+                <span class="value">{{ machineConfig.machineData.machineName }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Rack:</span>
+                <span class="value">{{ machineConfig.machineData.plcRack }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Slot:</span>
+                <span class="value">{{ machineConfig.machineData.plcSlot }}</span>
+              </div>
+            </div>
+            <div class="section">
+              <h5>MQTT Settings</h5>
+              <div class="info-row"></div>
+                <span class="label">Address:</span>
+                <span class="value">{{ machineConfig.mqttData.mqttIp }}:{{ machineConfig.mqttData.mqttPort }}</span>
+              <div class="info-row">
+                <span class="label">Topic:</span>
+                <span class="value">{{ machineConfig.mqttData.mqttTopic }}</span>
+              </div>
+            </div>
+            <div class="section">
+              <h5>PLC Tags</h5>
+              <ul>
+                <li *ngFor="let tag of machineConfig.plcTagData">
+                  {{ tag.tagName }} ({{ tag.tagAddress }})
+                </li>
+              </ul>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-notification success" *ngIf="submissionState.success" [@fadeOut]="submissionState.success ? 'active' : 'inactive'">
+  <span class="toast-icon">✓</span>
+  <div class="toast-message">{{ toastNotifyMessage }}</div>
+</div>
+
+<!-- Error Toast Notification -->
+<div class="toast-notification error" *ngIf="submissionState.error" [@fadeOut]="submissionState.error ? 'active' : 'inactive'">
+  <span class="toast-icon">⚠️</span>
+  <div class="toast-message">{{ toastNotifyMessage }}</div>
+</div>

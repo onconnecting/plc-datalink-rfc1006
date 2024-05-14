@@ -1,0 +1,364 @@
+openapi: "3.0.0"
+info:
+  title: PLC Datalink RFC1006 API
+  version: '1.0.0'
+  description: >
+    API for managing PLC Datalink RFC1006, including reading, updating, creating, and removing configurations. Also provides endpoints to start and stop each machine data collection.
+servers:
+  - url: http://localhost/api
+
+tags:
+  - name: Configuration
+    description: Manage configurations
+  - name: Service
+    description: Start or stop PLC Datalink RFC1006 services
+
+paths:
+  /config/read/all:
+    get:
+      tags:
+        - Configuration
+      summary: Read all configurations
+      description: Endpoint to read all available configurations from CouchDB.
+      responses:
+        '200':
+          description: Successfully retrieved all configurations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '404':
+          description: Configurations not available.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Configurations not available"
+        '500':
+          description: Error reading all configurations.
+
+  /config/read/one:
+    get:
+      tags:
+        - Configuration
+      summary: Read a specific machine configuration
+      description: Endpoint to read the configuration of a specific machine.
+      parameters:
+        - name: machine_name
+          in: query
+          required: true
+          description: The name of the machine to read the configuration for.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved the configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Machine name is required.
+        '404':
+          description: Machine does not exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Machine {machine_name} does not exist."
+        '500':
+          description: Error reading configuration.
+
+  /config/create:
+    post:
+      tags:
+        - Configuration
+      summary: Create a new machine configuration
+      description: Endpoint to create a new configuration for a specific machine.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Configuration'
+            examples:
+              example1:
+                summary: Example configuration
+                value:
+                  machineData:
+                    machineName: "devBoard"
+                    plcIp: "192.168.4.100"
+                    plcPort: 102
+                    plcRack: 0
+                    plcSlot: 1
+                    pduSize: 10
+                    requestInterval: 1
+                  mqttData:
+                    mqttIp: "192.168.4.172"
+                    mqttPort: 1883
+                    mqttTopic: "on/ot/devBoard"
+                  plcTagData:
+                    - tagAddress: "DB9.X1732.1"
+                      tagName: "lightBarrier"
+                    - tagAddress: "DB9.X1732.2"
+                      tagName: "lightBarrier2"
+      responses:
+        '200':
+          description: Successfully created the configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid configuration data.
+        '409':
+          description: Conflict with an existing configuration.
+        '500':
+          description: Error creating configuration.
+
+  /config/update:
+    put:
+      tags:
+        - Configuration
+      summary: Update an existing configuration
+      description: Update the configuration of an existing machine in CouchDB.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Configuration'
+      responses:
+        '200':
+          description: Successfully updated the configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid configuration data or machine name is required.
+        '404':
+          description: Configuration does not exist, cannot update.
+        '409':
+          description: Conflict when updating configuration.
+        '500':
+          description: Error updating configuration.
+
+  /config/remove:
+    delete:
+      tags:
+        - Configuration
+      summary: Remove a machine configuration
+      description: Remove an existing configuration for a specific machine if it is not currently active.
+      parameters:
+        - name: machine_name
+          in: query
+          required: true
+          description: The name of the machine to remove the configuration for.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully removed the configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Machine name is required.
+        '409':
+          description: Cannot remove configuration because the machine is currently running.
+        '404':
+          description: Configuration does not exist, cannot remove.
+        '500':
+          description: Error removing configuration.
+
+  /machine/start:
+    get:
+      tags:
+        - Service
+      summary: Start the PLC Datalink RFC1006 service
+      description: Start the PLC Datalink RFC1006 service for a specific machine.
+      parameters:
+        - name: machine_name
+          in: query
+          required: true
+          description: The name of the machine to start the PLC Datalink RFC1006 service for.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully started the Telegraf service.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Machine name is required.
+        '404':
+          description: Configuration does not exist, cannot start.
+        '500':
+          description: Error starting the Telegraf service.
+
+  /machine/stop:
+    get:
+      tags:
+        - Service
+      summary: Stop the PLC Datalink RFC1006 service
+      description: Stop the PLC Datalink RFC1006 service for a specific machine.
+      parameters:
+        - name: machine_name
+          in: query
+          required: true
+          description: The name of the machine to stop the PLC Datalink RFC1006 service for.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully stopped the Telegraf service.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Machine name is required.
+        '404':
+          description: Configuration does not exist, cannot stop.
+        '500':
+          description: Error stopping the Telegraf service.
+
+  /machine/online:
+    get:
+      tags:
+        - Service
+      summary: List all active PLC Datalink RFC1006 processes
+      description: List all currently active PLC Datalink RFC1006 processes.
+      responses:
+        '200':
+          description: Successfully retrieved the list of active machines.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: No machines online.
+        '500':
+          description: Error fetching active machines.
+  
+  /machine/state:
+    get:
+      tags:
+        - Service
+      summary: Get current machine state
+      description: Get current machine state with connection and disconnection time.
+      parameters:
+        - name: machine_name
+          in: query
+          required: true
+          description: The name of the machine to get the state for.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved the machine states.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Active machine not available.
+        '500':
+          description: Error fetching machine states.     
+
+  /machine/configured:
+    get:
+      tags:
+        - Service
+      summary: Get currently configured machines.
+      description: List all machines which are configured.
+      responses:
+        '200':
+          description: Successfully retrieved the configured machines.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Configured machines"
+                  machines:
+                    type: array
+                    items:
+                      type: string
+                      description: "Machine name"
+                    example: ["devBoard1", "devBoard2", "devBoard3"]
+        '404':
+          description: No configured machines available.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "No machines configured."
+        '500':
+          description: Error fetching configured machines.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "An error occurred: <error_message>"
+
+components:
+  schemas:
+    Configuration:
+      type: object
+      properties:
+        machineData:
+          type: object
+          properties:
+            machineName:
+              type: string            
+            plcIp:
+              type: string
+            plcPort:
+              type: integer
+            plcRack:
+              type: integer
+            plcSlot:
+              type: integer
+            pduSize:
+              type: integer
+            requestInterval:
+              type: integer
+        mqttData:
+          type: object
+          properties:
+            mqttIp:
+              type: string
+            mqttPort:
+              type: integer
+            mqttTopic:
+              type: string
+        plcTagData:
+          type: array
+          items:
+            type: object
+            properties:
+              tagAddress:
+                type: string
+              tagName:
+                type: string

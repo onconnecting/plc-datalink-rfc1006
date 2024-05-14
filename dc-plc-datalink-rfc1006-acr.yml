@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  plc-datalink-rfc1006-database:
+    image: onconnecting.azurecr.io/plc-datalink-rfc1006-database:latest
+    container_name: plc-datalink-rfc1006-database
+    hostname: plc-datalink-rfc1006-database
+    ports:
+      - "5984:5984"
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+    volumes:
+      - plc-datalink-rfc1006-database-data:/opt/couchdb/data
+    networks:
+      - plc-datalink-rfc1006-network
+  
+  plc-datalink-rfc1006-backend:
+    image: onconnecting.azurecr.io/plc-datalink-rfc1006-backend:latest
+    container_name: plc-datalink-rfc1006-backend
+    hostname: plc-datalink-rfc1006-backend
+    depends_on:
+      - plc-datalink-rfc1006-database 
+    volumes:
+      - plc-datalink-rfc1006-backend-data:/etc/telegraf
+    networks:
+      - plc-datalink-rfc1006-network
+  
+  plc-datalink-rfc1006-frontend:
+    image: onconnecting.azurecr.io/plc-datalink-rfc1006-frontend:latest
+    container_name: plc-datalink-rfc1006-frontend
+    hostname: plc-datalink-rfc1006-frontend
+    ports:
+      - "80:80" 
+    depends_on:
+      - plc-datalink-rfc1006-backend
+    networks:
+      - plc-datalink-rfc1006-network
+
+networks:
+  plc-datalink-rfc1006-network:
+    name: plc-datalink-rfc1006-network
+    driver: bridge
+
+volumes:
+  plc-datalink-rfc1006-backend-data:
+    name: plc-datalink-rfc1006-backend-data
+  plc-datalink-rfc1006-database-data:
+    name: plc-datalink-rfc1006-database-data

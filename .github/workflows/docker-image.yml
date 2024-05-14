@@ -1,0 +1,88 @@
+name: Docker Images CI plc-datalink-rfc1006
+
+env:
+  CONTAINER_REGISTRY: "onconnecting.azurecr.io"
+  CONTAINER_IMAGE_NAME: "plc-datalink-rfc1006"
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**/*.md'
+      - '**/docker-compose*.yml'
+      - '**/docker-compose*.yaml'
+      - 'docs/**'
+      - .gitignore
+jobs:
+  build_database:
+    runs-on: ubuntu-20.04
+    env:
+      SUFFIX: database
+      TAG: latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}      
+      - name: Verify if ACR exists
+        run: |
+          az acr show --name ${{ env.CONTAINER_REGISTRY }} --query "name" --output tsv
+          if [ $? -eq 0 ]; then
+            echo "ACR exists, proceeding to next steps."
+          else
+            echo "ACR does not exist. Exiting."
+            exit 1
+          fi
+      - name: Build and tag linux image
+        run: az acr build --image ${{ env.CONTAINER_REGISTRY }}/${{ env.CONTAINER_IMAGE_NAME }}-${{env.SUFFIX}}:${{ env.TAG }} --registry ${{ env.CONTAINER_REGISTRY }} --file "dockerfile-plc-datalink-rfc1006-database" .
+        working-directory: database/
+
+  build_backend:
+    runs-on: ubuntu-20.04
+    env:
+      SUFFIX: backend
+      TAG: latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}      
+      - name: Verify if ACR exists
+        run: |
+          az acr show --name ${{ env.CONTAINER_REGISTRY }} --query "name" --output tsv
+          if [ $? -eq 0 ]; then
+            echo "ACR exists, proceeding to next steps."
+          else
+            echo "ACR does not exist. Exiting."
+            exit 1
+          fi
+      - name: Build and tag linux image
+        run: az acr build --image ${{ env.CONTAINER_REGISTRY }}/${{ env.CONTAINER_IMAGE_NAME }}-${{env.SUFFIX}}:${{ env.TAG }} --registry ${{ env.CONTAINER_REGISTRY }} --file "dockerfile-plc-datalink-rfc1006-backend" .
+        working-directory: backend/
+ 
+  build_frontend:
+    runs-on: ubuntu-20.04
+    env:
+      SUFFIX: frontend
+      TAG: latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}      
+      - name: Verify if ACR exists
+        run: |
+          az acr show --name ${{ env.CONTAINER_REGISTRY }} --query "name" --output tsv
+          if [ $? -eq 0 ]; then
+            echo "ACR exists, proceeding to next steps."
+          else
+            echo "ACR does not exist. Exiting."
+            exit 1
+          fi
+      - name: Build and tag linux image
+        run: az acr build --image ${{ env.CONTAINER_REGISTRY }}/${{ env.CONTAINER_IMAGE_NAME }}-${{env.SUFFIX}}:${{ env.TAG }} --registry ${{ env.CONTAINER_REGISTRY }} --file "dockerfile-plc-datalink-rfc1006-frontend" .
+        working-directory: frontend/

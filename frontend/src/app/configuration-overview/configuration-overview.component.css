@@ -1,0 +1,193 @@
+
+/* Adjust the spacing and padding for the overall form */
+form {
+    padding: 0px;
+}
+
+.form-container-base {
+  max-width: 1200px;
+  margin-left: 10px;
+  margin-right: auto;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* Optional: Adds shadow to the form */
+  padding: 10px; /* Optional: Adds padding inside the form */
+  background: white; /* Needed if you want the shadow to stand out */
+}
+
+.form-container {
+  max-width: 900px;
+  margin-left: 10px;
+  margin-right: auto;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* Optional: Adds shadow to the form */
+  padding: 10px; /* Optional: Adds padding inside the form */
+  background: white; /* Needed if you want the shadow to stand out */
+}
+  
+
+.form-section {
+  margin-bottom: 20px; /* Setzen Sie den Seitenabstand von allen Seiten */
+  padding: 5px; /* Fügen Sie Padding hinzu, um Platz im Container zu schaffen */
+  background-color:  rgba(35, 142, 168, 0.1);
+  height: auto; /* Automatische Höhe basierend auf dem Inhalt */
+  width: auto;
+}
+
+.form-shadow {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19); /* Horizontal offset, vertical offset, blur radius, spread radius, color */
+  background-color: rgb(247, 247, 247); /* Ensures the shadow stands out */
+}
+
+ 
+label {
+    display: block;
+    margin-top: 5px; /* Add some spacing between label and input */
+    margin-bottom: 0px; /* Add some spacing between label and input */
+    font-size: 12px;
+}
+
+.machine-card {
+  padding: 16px;
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 0px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+.machine-content {
+  display: flex;
+  flex-direction: column; /* Aligns items vertically */
+  width: 100%;
+}
+
+.machine-info, .machine-buttons {
+  width: 100%; /* Full width to allow button alignment manipulation */
+}
+
+.machine-buttons {
+  display: flex;
+  justify-content: flex-end; /* Aligns buttons to the right */
+}
+
+.machine-buttons button {
+  width: 80px; /* Ensure buttons have uniform width */
+  height: 35px;
+  padding: 8px 16px; /* Adequate padding for readability */
+  margin: 5px;
+}
+
+
+.input-field {
+    width: calc(100% - 20px); /* Adjust width to fit inside container with padding */
+    max-width: 100%; /* Ensure input field doesn't exceed container width */
+    margin-bottom: 5px; /* Add spacing between input field and help text */
+}
+
+.help-txt {
+    font-size: 8px;
+}
+
+input.ng-invalid.ng-touched,
+select.ng-invalid.ng-touched {
+    border: 1px solid red;
+}
+
+
+.add-tag-button {
+    float: right; 
+    padding: 0px;
+    height: 30px;
+    width: 90px;
+    margin-top: -45px; 
+    margin-right: 90px; 
+  }
+
+.delete-tag-button {
+    font-size: 10px;
+    float: right;
+    padding: 0px;
+    height: 15px;
+    width: 45px;
+    margin-top: -10px;
+}
+
+.submit-conf-button {
+    float: right;
+    height: 40px;
+    width: 120px;
+    background-color: rgb(35, 142, 168); 
+    margin-bottom: 5px; 
+}
+
+.custom-modal {
+  position: fixed; /* Fixed position relative to the viewport */
+  top: 50%; /* Center vertically */
+  left: 50%; /* Center horizontally */
+  transform: translate(-50%, -50%); /* Adjust position to the exact center */
+  z-index: 1050; /* Ensure it's on top of other content */
+  width: 50%; /* Set the width of the modal */
+  max-width: 400px; /* Maximum width */
+  background-color: white; /* Background color */
+  padding: 10px; /* Padding inside the modal */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Shadow for better visibility */
+  border-radius: 0px; /* Rounded corners */
+}
+
+
+/* Toast Notification Styles */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    border: 1px solid #28a745;
+    background-color: white;
+    padding: 16px 24px;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    border-radius: 0px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn 0.5s;
+  }
+  
+  .toast-notification.success {
+    border-color: #28a745;
+    color: #155724;
+    background-color: #d4edda;
+  }
+
+  .toast-notification.error {
+    border-color: #dc3545; 
+    color: #721c24; 
+    background-color: #f8d7da;
+  }
+  
+  .toast-icon {
+    display: inline-block;
+    font-size: 1.5rem;
+  }
+  
+  .toast-message {
+    flex-grow: 1;
+    font-size: 1rem;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes fadeOut {
+    to {
+      opacity: 0;
+    }
+  }
+  
+  
+  

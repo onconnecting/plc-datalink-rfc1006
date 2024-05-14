@@ -1,0 +1,28 @@
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" (click)="collapsed = !collapsed">
+              <span class="icon-bar" *ngFor="let iconBar of [1, 2, 3, 4]"></span>
+            </button>
+            <a routerLink="/" class="navbar-brand">PLC Datalink RFC1006</a>
+        </div>
+        <div class="navbar-collapse" [class.collapse]="collapsed" (window:resize)="collapsed = true">
+            <ul class="nav navbar-nav">
+                <li 
+                    routerLinkActive="active"
+                    [routerLinkActiveOptions]="{exact: true}">
+                    <a routerLink="/" (click)="onSelect('plc-state')">PLC State</a>
+                </li>
+                <li routerLinkActive="active">
+                    <a routerLink="/configuration-overview" (click)="onSelect('plc-configuration')">Configuration Overview</a>
+                </li>
+                <li routerLinkActive="active">
+                    <a routerLink="/create-configuration" (click)="onSelect('create-configuration')">Create Configuration</a>
+                </li>
+                <li>
+                    <a href="/swagger" target="_blank">API Definition</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

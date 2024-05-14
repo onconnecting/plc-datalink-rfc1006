@@ -1,0 +1,83 @@
+# Using Python 3.9-slim as the base image
+FROM python:3.9-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gnupg \
+    supervisor \
+    procps \
+    iputils-ping \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download the InfluxData GPG key, verify its checksum, and add it to the trusted keys
+RUN curl -s https://repos.influxdata.com/influxdata-archive.key > influxdata-archive.key \
+    && echo '943666881a1b8d9b849b74caebf02d3465d6beb716510d86a39f6c8e8dac7515 influxdata-archive.key' | sha256sum -c \
+    && cat influxdata-archive.key | gpg --dearmor > /etc/apt/trusted.gpg.d/influxdata-archive.gpg \
+    && rm influxdata-archive.key
+
+# Add the InfluxData repository
+RUN echo 'deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive.gpg] https://repos.influxdata.com/debian stable main' > /etc/apt/sources.list.d/influxdata.list
+
+# Update the package list and install Telegraf
+RUN apt-get update && apt-get install -y telegraf \
+    && rm -rf /var/lib/apt/lists/*
+
+# Remove all default configuration files
+RUN rm -rf /etc/telegraf/*.conf*
+
+# Create log directories for Supervisord, Telegraf, and Gunicorn
+RUN mkdir -p /var/log/supervisor /var/log/telegraf /var/log/gunicorn /app/openapi && \
+    chown -R root:root /var/log/supervisor /var/log/telegraf /var/log/gunicorn /app/openapi && \
+    chmod -R 755 /var/log/supervisor /var/log/telegraf /var/log/gunicorn /app/openapi
+
+RUN chmod +x /usr/lib/python3/dist-packages/supervisor/xmlrpc.py
+
+# Set up a virtual environment to isolate our package dependencies locally
+RUN python -m venv /venv
+
+# Ensure that pip is up to date
+RUN /venv/bin/pip install --upgrade pip
+
+# Install Python dependencies
+COPY requirements.txt ./
+RUN /venv/bin/pip install -r requirements.txt
+
+# Activate the virtual environment
+ENV PATH="/venv/bin:$PATH"
+
+# Copy application files
+COPY src /app/src
+
+# Copy env
+COPY /config/env /app/.env
+
+# Copy openapi yml
+COPY /openapi/plc_datalink_rfc1006_api.yml /app/openapi/
+
+# Copy custom supervisord
+COPY /config/supervisord.conf /etc/supervisor/supervisord.conf
+
+# Copy dynamic_startup_telegraf script for supervisord
+COPY /config/dynamic_startup_telegraf.sh /app/dynamic_startup_telegraf.sh
+COPY /config/backend-entrypoint.sh /app/backend-entrypoint.sh
+RUN chown -R root:root /app/dynamic_startup_telegraf.sh /app/backend-entrypoint.sh /app/.env && \
+    chmod +x /app/backend-entrypoint.sh /app/dynamic_startup_telegraf.sh
+
+
+# Expose the Flask port
+EXPOSE 5000
+
+# Run using backend-entrypoint
+ENTRYPOINT ["/app/backend-entrypoint.sh"]
+
+#Supervisord is started when the container is run
+CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+
+
+
+

@@ -1,0 +1,64 @@
+<div class="form-container-base">
+  <h2>Configuration Overview</h2>
+  <div style="border-bottom: 4px solid rgb(35, 142, 168); margin: 20px 0;"></div>
+
+
+  <div *ngFor="let config of mappedData; let i = index" class="form-container">
+    <!-- <div class="machine-card"> -->
+      <div class="machine-content">
+        <div class="machine-info">
+          <h3 class="config-header">Configuration {{ i + 1 }}: {{ config.machineData.machineName }}</h3>
+          <div class="config-item machine-card">
+            <p><strong>Machine Name:</strong> {{ config.machineData.machineName }}</p>
+            <p><strong>Request Batch Size:</strong> {{ config.machineData.pduSize }}</p>
+            <p><strong>Request Interval in Seconds:</strong> {{ config.machineData.requestInterval }}</p>
+            <p><strong>PLC IP Address:</strong> {{ config.machineData.plcIp }}</p>
+            <p><strong>PLC Port:</strong> {{ config.machineData.plcPort }}</p>
+            <p><strong>PLC Rack:</strong> {{ config.machineData.plcRack }}</p>
+            <p><strong>PLC Slot:</strong> {{ config.machineData.plcSlot }}</p>
+            <hr>
+            <p><strong>MQTT IP Address:</strong> {{ config.mqttData.mqttIp }}</p>
+            <p><strong>MQTT Port:</strong> {{ config.mqttData.mqttPort }}</p>
+            <p><strong>MQTT Topic:</strong> {{ config.mqttData.mqttTopic }}</p>
+            <hr>
+            <div *ngIf="config.plcTagData.length">
+              <strong>PLC Tags:</strong>
+              <ul>
+                <li *ngFor="let tag of config.plcTagData">
+                  <strong>Tag Name:</strong> {{ tag.tagName }}, <strong>Tag Address:</strong> {{ tag.tagAddress }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="machine-buttons">
+          <button class="btn btn-danger" type="button" (click)="onRemoveConfigurationInitiate(config.machineData.machineName)">Remove</button>
+          <button class="btn btn-warning" type="button" (click)="onEditConfiguration(config)">Edit</button>
+          <button class="btn btn-success" type="button" (click)="onStartConfiguration(config.machineData.machineName)">Start</button>
+        </div>
+      </div>
+    <!-- </div> -->
+  </div>
+</div>
+
+<!-- Confirmation Dialog placed in main component template -->
+<confirmation-dialog 
+  *ngIf="showConfirmationDialog"
+  class="custom-modal" 
+  [title]="'Confirmation'"
+  [message]="'Remove this configuration: ' + pendingDeletionMachineName + '?'"
+  (onDecline)="cancelDeletion()"
+  (onConfirm)="confirmDeletion()">
+</confirmation-dialog>
+
+<!-- Toast Notification -->
+<div class="toast-notification success" *ngIf="submissionState.success" [@fadeOut]="submissionState.success ? 'active' : 'inactive'">
+  <span class="toast-icon">✓</span>
+  <div class="toast-message">{{ toastNotifyMessage }}</div>
+</div>
+
+<!-- Error Toast Notification -->
+<div class="toast-notification error" *ngIf="submissionState.error" [@fadeOut]="submissionState.error ? 'active' : 'inactive'">
+  <span class="toast-icon">⚠️</span> 
+  <div class="toast-message">{{ toastNotifyMessage }}</div>
+</div>
