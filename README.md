@@ -38,6 +38,14 @@ The build process for this project based GitHub Actions. The workflow involves t
  
 ### Get and Run Docker Image
 
+#### Build and starting the Container localy
+To start with build the container localy, execute `dc-plc-datalink-rfc1006-local.yml` file. This Docker Compose configuration sets up three services, `plc-datalink-rfc1006-database`, `plc-datalink-rfc1006-backend` and `plc-datalink-rfc1006-frontend`, along with a network and a volume.
+```bash
+docker-compose -f dc-plc-datalink-rfc1006-local.yml up -d
+```
+
+#### Build and starting the Container from ACR OPTIONAL
+Require credential and is optional.
 **Login to ACR**
 ```bash
 az login
@@ -55,14 +63,13 @@ To start with build the container localy, execute `dc-plc-datalink-rfc1006-local
 ```bash
 docker-compose -f dc-plc-datalink-rfc1006-local.yml up -d
 ```
-
 **Starting the Container from ACR**
 To start with build the container localy, execute `dc-plc-datalink-rfc1006-acr.yml` file. This Docker Compose configuration sets up three services, `plc-datalink-rfc1006-database`, `plc-datalink-rfc1006-backend` and `plc-datalink-rfc1006-frontend`, along with a network and a volume.
 ```bash
 docker-compose -f dc-plc-datalink-rfc1006-acr.yml up -d
 ```
 
-**Services:** 
+#### Container: 
 - **plc-datalink-rfc1006-database:**
   - Image: `onconnecting.azurecr.io/plc-datalink-rfc1006-database:latest`
   - Container Name: `plc-datalink-rfc1006-database`
