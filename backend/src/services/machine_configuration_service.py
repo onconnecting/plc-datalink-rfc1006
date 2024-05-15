@@ -134,7 +134,7 @@ class MachineConfigurationService:
             lines.append("  [[inputs.s7comm.metric]]")
             lines.append(f"    fields = [{{ name=\"{config['machineData']['machineName']}.{metric['tagName']}\", address=\"{metric['tagAddress']}\" }}]")
             lines.append("    [inputs.s7comm.metric.tags]")
-            lines.append(f"      machine = \"{config['machineData']['machineName']}_{config['machineData']['machineName']}.{metric['tagName']}\"")
+            lines.append(f"      machine = \"{config['machineData']['machineName']}.{metric['tagName']}\"")
             lines.append(f"")
         return "\n".join(lines)
 
