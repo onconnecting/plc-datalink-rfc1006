@@ -41,7 +41,7 @@ class TelegrafService:
         if process_id:
             self._terminate_existing_process(process_id)
         try:
-            process = subprocess.Popen(['/app/entrypoint.sh'])
+            process = subprocess.Popen(['/app/backend-entrypoint.sh'])
             #process = subprocess.Popen(['telegraf', '--config', str(machine_conf_path), '--watch-config', str(machine_conf_path)])
             logger.info(f"Started new Telegraf process with PID: {process.pid}")
         except Exception as e:
