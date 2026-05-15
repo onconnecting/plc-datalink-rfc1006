@@ -1,0 +1,81 @@
+# DB-Layout-Definition für den ZKS-S7-Server.
+# [Eigene Ergänzung] Größen sind in Bytes angegeben, Strings haben einen
+# 2-Byte-Header (max. Länge, aktuelle Länge), daher STRING[20] = 22 Bytes,
+# STRING[32] = 34 Bytes (vgl. OPEN_QUESTIONS A11). Serial wurde gemäß
+# OPEN_QUESTIONS A13 historisch (für die 31-stellige T5-SFC-Nummer) auf
+# STRING[32] gesetzt und alle nachfolgenden DB4-Felder um 8 Bytes
+# verschoben. Mit der jetzt verwendeten Gen6 ON-SFC-Nummer (21 Zeichen,
+# siehe docs/sfc-on-numbers.md) bleibt STRING[32] mit 11 Zeichen Slack.
+
+server:
+  ip: 192.168.0.180
+  rack: 0
+  slot: 1
+  tcp_port: 102
+
+dbs:
+
+  - number: 1
+    name: Machine
+    size: 60
+    fields:
+      - { offset: 0,  type: INT,    name: State,         comment: "0=IDLE,1=RUNNING,2=PAUSED,3=ERROR,4=MAINTENANCE" }
+      - { offset: 2,  type: INT,    name: Mode,          comment: "0=AUTO,1=MANUAL,2=SETUP" }
+      - { offset: 4,  type: DINT,   name: PartCounter }
+      - { offset: 8,  type: DINT,   name: OkCounter }
+      - { offset: 12, type: DINT,   name: NokCounter }
+      - { offset: 16, type: DINT,   name: ScrapCounter }
+      - { offset: 20, type: DINT,   name: ReworkCounter }
+      - { offset: 24, type: REAL,   name: Throughput }
+      - { offset: 28, type: REAL,   name: Yield }
+      - { offset: 32, type: DINT,   name: Uptime }
+      - { offset: 36, type: BOOL,   name: ErrorActive,   bit: 0 }
+      - { offset: 38, type: STRING, length: 20, name: LastError }
+
+  - number: 2
+    name: Welds
+    # 12 Schweißpunkte je 24 Bytes
+    size: 288
+    array:
+      count: 12
+      stride: 24
+      fields:
+        - { offset: 0,  type: BOOL, name: Done, bit: 0 }
+        - { offset: 2,  type: REAL, name: Current }
+        - { offset: 6,  type: REAL, name: Voltage }
+        - { offset: 10, type: REAL, name: PulseDuration }
+        - { offset: 14, type: REAL, name: Force }
+        - { offset: 18, type: REAL, name: Energy }
+        - { offset: 22, type: INT,  name: TimestampSec }
+
+  - number: 3
+    name: Test
+    size: 60
+    fields:
+      - { offset: 0,  type: REAL, name: Current }
+      - { offset: 4,  type: REAL, name: TotalResistance }
+      - { offset: 8,  type: INT,  name: Result, comment: "0=PENDING,1=OK,2=NOK" }
+      - { offset: 10, type: INT,  name: FaultSegment }
+      - { offset: 12, type: REAL_ARRAY, count: 11, name: SegmentResistance }
+
+  - number: 4
+    name: PartAndCommands
+    size: 108
+    fields:
+      - { offset: 0,  type: STRING, length: 32, name: Serial, comment: "Gen6 ON-SFC, 21 Zeichen, STRING[32] historisch, siehe OPEN_QUESTIONS A13" }
+      - { offset: 34, type: INT,    name: Status, comment: "Enum 0..7" }
+      - { offset: 36, type: INT,    name: CurrentIndex }
+      - { offset: 38, type: REAL,   name: CycleTime }
+      - { offset: 42, type: INT,    name: ReworkAttempts }
+      - { offset: 44, type: INT,    name: FaultPosition }
+      - { offset: 46, type: STRING, length: 20, name: FaultCode }
+      - { offset: 68, type: BOOL,   name: MarkedNok,           bit: 0 }
+      - { offset: 68, type: BOOL,   name: Cmd_Start,           bit: 1 }
+      - { offset: 68, type: BOOL,   name: Cmd_Stop,            bit: 2 }
+      - { offset: 68, type: BOOL,   name: Cmd_Pause,           bit: 3 }
+      - { offset: 68, type: BOOL,   name: Cmd_Resume,          bit: 4 }
+      - { offset: 68, type: BOOL,   name: Cmd_MarkPartNok,     bit: 5 }
+      - { offset: 68, type: BOOL,   name: Cmd_ResetCounters,   bit: 6 }
+      - { offset: 68, type: BOOL,   name: Cmd_ChangeElectrode, bit: 7 }
+      - { offset: 70, type: STRING, length: 20, name: Cmd_InjectFault }
+      - { offset: 92, type: REAL,   name: Cmd_CycleSpeedFactor }
