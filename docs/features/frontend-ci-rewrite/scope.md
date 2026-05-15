@@ -1,6 +1,6 @@
 # Feature Scope: Frontend CI-Rewrite (Angular 19, onconnecting CI)
 
-**Status:** Scoped
+**Status:** Implemented (swap done, awaiting browser sign-off)
 **Created:** 2026-05-15
 **Branch:** `feat/frontend-ci-rewrite`
 
@@ -139,10 +139,10 @@ Es entspricht weder dem verbindlichen CI-Referenzdokument [`docs/design/onconnec
 **API/MQTT/CouchDB:** keine.
 
 **Migrationsplan:**
-1. `frontend-next/` parallel zu `frontend/` aufbauen (dieser Branch).
-2. CI-Workflow um zweiten Job ergänzen, der `frontend-next` baut (kein Push zu ACR, nur Build-Check).
-3. Nach Abnahme: gesonderter kleiner PR — `frontend/` entfernen/archivieren, `frontend-next/` → `frontend/`, Dockerfile/Compose/CI ausrichten.
-4. Verifikation auf Local-Stack (siehe `/qa`), dann ACR-Build und Tag.
+1. ✅ `frontend-next/` parallel zu `frontend/` aufgebaut (Phasen A–D).
+2. ⏭ CI-Workflow um zweiten Job für `frontend-next` ergänzen — entfällt, weil der Swap direkt mit der Implementierung erfolgt ist (Greenfield kam in einem Branch mit den ADRs, der Build-Check lief im DEV-Loop, nicht parallel zu Legacy).
+3. ✅ Swap ausgeführt: legacy `frontend/` aus dem Tree entfernt (Historie in git erhalten), `frontend-next/` → `frontend/`. `dc-plc-datalink-rfc1006-dev.yml` baut unverändert aus `./frontend`, jetzt mit dem neuen Code.
+4. ✅ DEV-Verifikation auf `192.168.0.121:5000`-Registry-Loop: `compose build` + `compose up -d --no-build` läuft, alle Screens werden ausgeliefert, `/config/*` und `/machine/*` Proxy-Routen erreichbar. Push-Step braucht einmaligen `daemon.json`-Eintrag für die insecure Registry (siehe README); danach kann die volle build → push → pull → up-Sequenz laufen. ACR-Build/Tag folgt nach Browser-Abnahme.
 
 ## Dependencies
 - **Neue npm-Dependencies** (benötigen ADR via `/architecture`):
