@@ -1,23 +1,29 @@
 name: plc-datalink-rfc1006-e2e
 
 # End-to-end test stack: real production-image backend + real CouchDB +
-# real Mosquitto broker + a pytest runner. The ZKS machine mock runs
-# externally on the host (port 102 by default); both `backend-e2e`
-# (where Telegraf runs as a subprocess and reads PLC tags) and
-# `backend-e2e-runner` (where the test injects faults via snap7) reach
-# it through `host.docker.internal:host-gateway`.
+# real Mosquitto broker + a pytest runner. The ZKS machine mock lives on
+# a separate LAN host (see docs/machines-db-layout/zks-machine-mock/) —
+# default `192.168.0.180:102`, overridable via `ZKS_S7_HOST`/`ZKS_S7_PORT`.
+#
+# The runner reads ZKS_S7_HOST and posts it as `plcIp` to the backend, so
+# Telegraf inside `backend-e2e` dials the same endpoint as the snap7 calls
+# from `backend-e2e-runner`. Both containers reach the LAN through the
+# bridge's default NAT — no host-port hop required.
+#
+# `host.docker.internal:host-gateway` stays mapped for the rare case where
+# the mock IS co-located with the docker host: set `ZKS_S7_HOST=host.docker.internal`
+# (e.g. via .env) and the same compose still works.
 #
 # This stack is intentionally separate from
 # dc-plc-datalink-rfc1006-{dev,acr,test}.yml — different lifecycle, no
-# shared volumes, no published host ports. Keeps it safe to run alongside
-# a dev stack as long as the ZKS mock host port is the only thing they
-# fight over.
+# shared volumes, no published host ports.
 #
 # Typical usage:
-#   1) Start the ZKS mock on the host (docs/machines-db-layout/zks-machine-mock/)
-#   2) docker compose -f dc-plc-datalink-rfc1006-e2e.yml build
-#   3) docker compose -f dc-plc-datalink-rfc1006-e2e.yml run --rm backend-e2e-runner
-#   4) docker compose -f dc-plc-datalink-rfc1006-e2e.yml down -v
+#   1) Start the ZKS mock (docs/machines-db-layout/zks-machine-mock/)
+#   2) (optional) export ZKS_S7_HOST=<ip>  # if not 192.168.0.180
+#   3) docker compose -f dc-plc-datalink-rfc1006-e2e.yml build
+#   4) docker compose -f dc-plc-datalink-rfc1006-e2e.yml run --rm backend-e2e-runner
+#   5) docker compose -f dc-plc-datalink-rfc1006-e2e.yml down -v --remove-orphans
 
 services:
   couchdb-e2e:
@@ -83,8 +89,13 @@ services:
       # The config the runner POSTs to the backend reuses these:
       - TEST_MQTT_HOST=plc-datalink-rfc1006-mosquitto-e2e
       - TEST_MQTT_PORT=1883
-      - ZKS_S7_HOST=host.docker.internal
-      - ZKS_S7_PORT=102
+      # Canonical ZKS mock address from
+      # docs/machines-db-layout/zks-machine-mock/db-layout.yaml. The runner
+      # posts this as plcIp into the backend, so Telegraf inside backend-e2e
+      # dials the same target. Override via ZKS_S7_HOST/PORT in .env if the
+      # mock is co-located with the test runner — bridge NAT covers both.
+      - ZKS_S7_HOST=${ZKS_S7_HOST:-192.168.0.180}
+      - ZKS_S7_PORT=${ZKS_S7_PORT:-102}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

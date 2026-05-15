@@ -87,9 +87,13 @@ services:
     environment:
       - BACKEND_URL=http://plc-datalink-rfc1006-backend-int:5000
       # ZKS-Mock reachability hint for specs that exercise PLC-touching endpoints.
-      # If unset/empty, ZKS specs skip themselves.
-      - ZKS_S7_HOST=host.docker.internal
-      - ZKS_S7_PORT=102
+      # Default points at the canonical LAN address from
+      # docs/machines-db-layout/zks-machine-mock/db-layout.yaml. Override via
+      # ZKS_S7_HOST/PORT in the developer's .env if the mock is co-located
+      # with the test runner. Container reaches LAN IPs via bridge NAT.
+      # If the address is unreachable, ZKS specs skip themselves.
+      - ZKS_S7_HOST=${ZKS_S7_HOST:-192.168.0.180}
+      - ZKS_S7_PORT=${ZKS_S7_PORT:-102}
     volumes:
       - ./frontend/src:/app/src:ro
       - ./frontend/test:/app/test:ro

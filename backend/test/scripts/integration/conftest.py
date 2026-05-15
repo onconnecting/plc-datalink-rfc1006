@@ -78,7 +78,7 @@ def couchdb_container():
     """
     try:
         from testcontainers.core.container import DockerContainer
-        from testcontainers.core.waiting_utils import wait_for_logs
+        from testcontainers.core.wait_strategies import LogMessageWaitStrategy
     except ImportError:  # pragma: no cover - guarded by Dockerfile.test
         pytest.skip('testcontainers not installed')
 
@@ -88,9 +88,11 @@ def couchdb_container():
             .with_env('COUCHDB_USER', 'admin')
             .with_env('COUCHDB_PASSWORD', 'admin')
             .with_exposed_ports(5984)
+            .waiting_for(
+                LogMessageWaitStrategy('Apache CouchDB has started').with_startup_timeout(60)
+            )
         )
         container.start()
-        wait_for_logs(container, 'Apache CouchDB has started', timeout=60)
     except Exception as exc:
         pytest.skip(f'cannot start CouchDB testcontainer: {exc}')
 
