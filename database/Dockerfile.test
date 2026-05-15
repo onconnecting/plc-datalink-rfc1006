@@ -2,7 +2,7 @@
 # Spawns a couchdb:3 container per test session via testcontainers[couchdb] —
 # requires the Docker socket from the host to be mounted (see dc-plc-datalink-rfc1006-test.yml).
 # Per ADR-0008.
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
