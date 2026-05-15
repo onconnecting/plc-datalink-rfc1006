@@ -14,9 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Download the InfluxData GPG key, verify its checksum, and add it to the trusted keys
+# Download the InfluxData GPG key, verify its checksum, and add it to the trusted keys.
+# Checksum bumped 2026-05-15 after upstream key rotation; the prior value
+# (943666...8dac7515) no longer matches the file served at this URL.
 RUN curl -s https://repos.influxdata.com/influxdata-archive.key > influxdata-archive.key \
-    && echo '943666881a1b8d9b849b74caebf02d3465d6beb716510d86a39f6c8e8dac7515 influxdata-archive.key' | sha256sum -c \
+    && echo '40557e261cdbdccac91a2dde474cbf101ef672661e64b211b711cc0b904d5dac influxdata-archive.key' | sha256sum -c \
     && cat influxdata-archive.key | gpg --dearmor > /etc/apt/trusted.gpg.d/influxdata-archive.gpg \
     && rm influxdata-archive.key
 

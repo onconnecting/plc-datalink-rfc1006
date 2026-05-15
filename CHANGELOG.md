@@ -41,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - `.gitignore` now also excludes `backend/.venv/`, `__pycache__/`, `*.pyo`, `*.egg-info/`, `.pytest_cache/`, `.coverage`, `htmlcov/`, `node_modules/`, `frontend/dist/`, `.angular/`, and `*.swp` / `*.swo` swap files — previously these could have been accidentally committed.
+- Bump the pinned SHA256 of the InfluxData GPG key in `backend/dockerfile-plc-datalink-rfc1006-backend` to `40557e26…4d5dac` (the value currently served at `repos.influxdata.com/influxdata-archive.key`). The previous pin (`943666…7515`) no longer matched after an upstream key rotation, blocking the backend image build at step 4 of 20.
 
 ### Notes
 - The newly enabled lint workflow (Ruff for backend, Prettier for frontend) will likely fail on the first push because existing files were written before either tool was configured. Run `make format` (`ruff format` on backend) and `npx prettier --write "src/**/*.{ts,js,html,css,scss}"` inside `frontend/` once to establish a baseline.
