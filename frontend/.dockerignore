@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.angular/
+coverage/
+
+.git
+.gitignore
+.vscode/
+.idea/
+*.iml
+.editorconfig
+.DS_Store
+
+README.md
+*.log

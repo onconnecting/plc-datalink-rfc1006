@@ -4,7 +4,23 @@
 *.iml
 *.ipr
 *.iws
+*.swp
+*.swo
+
+# Python build & cache artifacts
 *.pyc
+*.pyo
+__pycache__/
+.venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / Angular build artifacts
+node_modules/
+frontend/dist/
+.angular/
 
 # Ignore environment specific files
 *.env

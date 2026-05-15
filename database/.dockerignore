@@ -1,0 +1,11 @@
+.git
+.gitignore
+.vscode/
+.idea/
+*.iml
+.editorconfig
+.DS_Store
+
+README.md
+test/
+*.log
