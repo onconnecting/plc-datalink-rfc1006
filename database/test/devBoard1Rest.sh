@@ -1,7 +1,11 @@
 #!/bin/bash
+# Source your project `.env` (or export COUCHDB_USER / COUCHDB_PASSWORD) before running:
+#   set -a && source ../../.env && set +a && ./devBoard1Rest.sh
+: "${COUCHDB_USER:?set COUCHDB_USER (see .env.example)}"
+: "${COUCHDB_PASSWORD:?set COUCHDB_PASSWORD (see .env.example)}"
 
 # Define the URL
-URL="http://admin:password@localhost:5984/datalink"
+URL="http://${COUCHDB_USER}:${COUCHDB_PASSWORD}@localhost:5984/datalink"
 
 # Make the PUT request to create the database
 curl -X PUT $URL

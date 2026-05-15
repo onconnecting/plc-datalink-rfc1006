@@ -10,26 +10,29 @@ services:
     ports:
       - "5984:5984"
     environment:
-      - COUCHDB_USER=admin
-      - COUCHDB_PASSWORD=password
+      - COUCHDB_USER=${COUCHDB_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD:-password}
     volumes:
       - plc-datalink-rfc1006-database-data:/opt/couchdb/data
     networks:
       - plc-datalink-rfc1006-network
-  
+
   plc-datalink-rfc1006-backend:
     build:
       context: ./backend
-      dockerfile: dockerfile-plc-datalink-rfc1006-backend 
+      dockerfile: dockerfile-plc-datalink-rfc1006-backend
     container_name: plc-datalink-rfc1006-backend
     hostname: plc-datalink-rfc1006-backend
+    environment:
+      - DATABASE_USER_NAME=${COUCHDB_USER:-admin}
+      - DATABASE_SECRET_KEY=${COUCHDB_PASSWORD:-password}
     depends_on:
-      - plc-datalink-rfc1006-database 
+      - plc-datalink-rfc1006-database
     volumes:
       - plc-datalink-rfc1006-backend-data:/etc/telegraf
     networks:
       - plc-datalink-rfc1006-network
-  
+
   plc-datalink-rfc1006-frontend:
     build:
       context: ./frontend
@@ -37,12 +40,12 @@ services:
     container_name: plc-datalink-rfc1006-frontend
     hostname: plc-datalink-rfc1006-frontend
     ports:
-      - "80:80" 
+      - "80:80"
     depends_on:
       - plc-datalink-rfc1006-backend
     networks:
       - plc-datalink-rfc1006-network
-      
+
 networks:
   plc-datalink-rfc1006-network:
     name: plc-datalink-rfc1006-network

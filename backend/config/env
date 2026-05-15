@@ -1,7 +1,6 @@
-# .env
-DATABASE_USER_NAME="admin"
-DATABASE_SECRET_KEY="password"
+# Built into the backend image at /app/.env and loaded via python-dotenv.
+# Only non-sensitive defaults are set here.
+# DATABASE_USER_NAME and DATABASE_SECRET_KEY are injected per-container
+# from the compose `environment:` section (sourced from the project `.env`).
 DATABASE_NAME="datalink"
 DATABASE_URL="http://plc-datalink-rfc1006-database:5984"
-
-

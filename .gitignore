@@ -12,3 +12,9 @@
 # Ignore any other build or temporary files
 *.log
 .DS_Store
+
+# Ignore Claude Code configuration
+.claude/
+
+# Ignore internal design docs
+doc/design/onconnecting-ci/

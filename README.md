@@ -28,6 +28,13 @@ Plc Datalink Rfc1006 is a software which is based on telegraf and is designed fo
 - S7-PLC Addresses
 - Chrome Browser
 
+## Configuration (.env)
+Before starting the stack, copy `.env.example` to `.env` and adjust the values:
+```bash
+cp .env.example .env
+```
+The `.env` file is git-ignored. It supplies the CouchDB admin credentials (shared between the database and backend containers) and, for the ACR compose file, the container registry and image tag. If no `.env` is present, the dev defaults from the compose files are used — do not use those defaults in production.
+
 ## Get started
 
 ### Building Docker Image
