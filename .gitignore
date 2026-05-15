@@ -20,6 +20,7 @@ htmlcov/
 # Node / Angular build artifacts
 node_modules/
 frontend/dist/
+frontend-next/dist/
 .angular/
 
 # Ignore environment specific files
@@ -33,4 +34,4 @@ frontend/dist/
 .claude/
 
 # Ignore internal design docs
-doc/design/onconnecting-ci/
+docs/design/onconnecting-ci/
