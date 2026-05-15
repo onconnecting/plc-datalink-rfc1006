@@ -1,0 +1,18 @@
+# Database integration test runner.
+# Spawns a couchdb:3 container per test session via testcontainers[couchdb] —
+# requires the Docker socket from the host to be mounted (see dc-plc-datalink-rfc1006-test.yml).
+# Per ADR-0008.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir pytest pytest-mock requests "testcontainers>=4" PyYAML
+
+# The ZKS reference machine ([docs/machines-db-layout/zks-machine-mock/]) drives
+# the integration suite. It's bind-mounted in dc-plc-datalink-rfc1006-test.yml;
+# the path lives in PLC_DATALINK_ZKS_LAYOUT so the conftest can find it without
+# guessing.
+ENV PLC_DATALINK_ZKS_LAYOUT=/app/docs/machines-db-layout/zks-machine-mock/db-layout.yaml
+
+CMD ["pytest", "-q", "database/test/python"]

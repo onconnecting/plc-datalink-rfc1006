@@ -1,0 +1,23 @@
+# Per-Dockerfile ignore (BuildKit honors <Dockerfile>.dockerignore).
+# The production .dockerignore excludes `test/`, but the test container
+# explicitly needs it — that's its whole point. Mirror the prod ignore
+# minus the test/ exclusion.
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+.git
+.gitignore
+.vscode/
+.idea/
+*.iml
+.editorconfig
+.DS_Store
+
+README.md
+*.log

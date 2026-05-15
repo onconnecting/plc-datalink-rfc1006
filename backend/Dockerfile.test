@@ -1,0 +1,45 @@
+# Test container for the backend.
+# Matches the production base image (python:3.9-slim) so version drift between
+# what tests run on and what ships is impossible.
+#
+# Build:  docker build -f backend/Dockerfile.test -t plc-datalink-rfc1006-backend-test backend
+# Run:    docker run --rm plc-datalink-rfc1006-backend-test
+# E2E / testcontainers usage requires the docker socket mounted:
+#         docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+#                    plc-datalink-rfc1006-backend-test
+FROM python:3.9-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+RUN /venv/bin/pip install --no-cache-dir --upgrade pip
+
+COPY requirements.txt ./
+RUN /venv/bin/pip install --no-cache-dir -r requirements.txt
+
+RUN /venv/bin/pip install --no-cache-dir \
+    pytest \
+    pytest-mock \
+    requests-mock \
+    paho-mqtt \
+    python-snap7 \
+    testcontainers
+
+COPY pyproject.toml ./
+COPY src ./src
+COPY openapi ./openapi
+COPY config ./config
+COPY test ./test
+
+# RotatingFileHandler in src/app.py opens this path at import time
+RUN mkdir -p /var/log && touch /var/log/plc-datalink-rfc1006.log
+
+ENV PYTHONPATH=/app
+
+CMD ["pytest", "-q", "test/scripts"]

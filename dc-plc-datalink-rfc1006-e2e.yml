@@ -1,0 +1,100 @@
+name: plc-datalink-rfc1006-e2e
+
+# End-to-end test stack: real production-image backend + real CouchDB +
+# real Mosquitto broker + a pytest runner. The ZKS machine mock runs
+# externally on the host (port 102 by default); both `backend-e2e`
+# (where Telegraf runs as a subprocess and reads PLC tags) and
+# `backend-e2e-runner` (where the test injects faults via snap7) reach
+# it through `host.docker.internal:host-gateway`.
+#
+# This stack is intentionally separate from
+# dc-plc-datalink-rfc1006-{dev,acr,test}.yml — different lifecycle, no
+# shared volumes, no published host ports. Keeps it safe to run alongside
+# a dev stack as long as the ZKS mock host port is the only thing they
+# fight over.
+#
+# Typical usage:
+#   1) Start the ZKS mock on the host (docs/machines-db-layout/zks-machine-mock/)
+#   2) docker compose -f dc-plc-datalink-rfc1006-e2e.yml build
+#   3) docker compose -f dc-plc-datalink-rfc1006-e2e.yml run --rm backend-e2e-runner
+#   4) docker compose -f dc-plc-datalink-rfc1006-e2e.yml down -v
+
+services:
+  couchdb-e2e:
+    image: plc-datalink-rfc1006-database-e2e:dev
+    build:
+      context: ./database
+    container_name: plc-datalink-rfc1006-couchdb-e2e
+    hostname: plc-datalink-rfc1006-couchdb-e2e
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=admin
+    networks:
+      - e2e-net
+
+  mosquitto-e2e:
+    image: eclipse-mosquitto:2
+    container_name: plc-datalink-rfc1006-mosquitto-e2e
+    hostname: plc-datalink-rfc1006-mosquitto-e2e
+    volumes:
+      - ./backend/test/scripts/integration/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - e2e-net
+
+  backend-e2e:
+    # Built from the same Dockerfile as production — Telegraf, supervisord,
+    # gunicorn, Flask all live here. The runner only talks HTTP to it.
+    image: plc-datalink-rfc1006-backend-e2e:dev
+    build:
+      context: ./backend
+    container_name: plc-datalink-rfc1006-backend-e2e
+    hostname: plc-datalink-rfc1006-backend-e2e
+    environment:
+      - DATABASE_USER_NAME=admin
+      - DATABASE_SECRET_KEY=admin
+      - DATABASE_URL=http://plc-datalink-rfc1006-couchdb-e2e:5984
+      - DATABASE_NAME=datalink
+    depends_on:
+      - couchdb-e2e
+    # Telegraf inside this container needs to reach the host-bound ZKS S7
+    # server. host-gateway is the standard Docker bridge → host trick.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - e2e-net
+
+  backend-e2e-runner:
+    # Reuses the backend-test image (built from Dockerfile.test) — it
+    # already has pytest, paho-mqtt, python-snap7, and the test sources.
+    image: plc-datalink-rfc1006-backend-test:dev
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    container_name: plc-datalink-rfc1006-backend-e2e-runner
+    hostname: plc-datalink-rfc1006-backend-e2e-runner
+    depends_on:
+      - backend-e2e
+      - mosquitto-e2e
+    environment:
+      # Drives the E2E test's fixtures — see backend/test/scripts/integration/conftest.py
+      - E2E_BACKEND_URL=http://plc-datalink-rfc1006-backend-e2e:5000
+      - E2E_MQTT_HOST=plc-datalink-rfc1006-mosquitto-e2e
+      - E2E_MQTT_PORT=1883
+      # The config the runner POSTs to the backend reuses these:
+      - TEST_MQTT_HOST=plc-datalink-rfc1006-mosquitto-e2e
+      - TEST_MQTT_PORT=1883
+      - ZKS_S7_HOST=host.docker.internal
+      - ZKS_S7_PORT=102
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - e2e-net
+    command:
+      - pytest
+      - -v
+      - test/scripts/integration/test_e2e_zks_mqtt.py
+
+networks:
+  e2e-net:
+    name: plc-datalink-rfc1006-e2e-net
+    driver: bridge

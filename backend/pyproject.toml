@@ -32,6 +32,13 @@ dependencies = [
 dev = [
     "ruff>=0.5.0",
     "pytest>=8.0",
+    "pytest-mock>=3.12",
+    "requests-mock>=1.11",
+]
+e2e = [
+    "paho-mqtt>=2.0",
+    "python-snap7>=1.3",
+    "testcontainers[couchdb]>=4.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -61,5 +68,8 @@ quote-style = "single"
 indent-style = "space"
 
 [tool.pytest.ini_options]
-testpaths = ["test/scripts"]
+testpaths = ["test/scripts/unit", "test/scripts/integration"]
 python_files = ["test_*.py", "*_test.py"]
+markers = [
+    "integration: requires the ZKS machine mock and/or a docker socket; auto-applied to every test under test/scripts/integration/",
+]
