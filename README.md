@@ -37,63 +37,90 @@ The `.env` file is git-ignored. It supplies the CouchDB admin credentials (share
 
 ## Get started
 
-### Building Docker Image
-The build process for this project based GitHub Actions. The workflow involves the following steps:
-- Building CouchDB on Linux Docker Engine
-- Building Python Backend on Linux Docker Engine
-- Building Angular Frontend on Linux Docker Engine
- 
-### Get and Run Docker Image
+The repo defines three Compose stacks (see [ADR-0005](architecture/decisions/ADR-0005-local-insecure-registry-for-dev-image-flow.md)):
 
-#### Build and starting the Container localy
-To start with build the container localy, execute `dc-plc-datalink-rfc1006-local.yml` file. This Docker Compose configuration sets up three services, `plc-datalink-rfc1006-database`, `plc-datalink-rfc1006-backend` and `plc-datalink-rfc1006-frontend`, along with a network and a volume.
+| File | Purpose |
+|---|---|
+| `dc-registry-local.yml` | Self-hosted insecure Docker registry (`registry:2`) on `192.168.0.121:5000` — DEV only |
+| `dc-plc-datalink-rfc1006-dev.yml` | DEV: build, push, pull, and run the app stack via the local registry |
+| `dc-plc-datalink-rfc1006-acr.yml` | PROD: pull pre-built images from `onconnecting.azurecr.io` |
+
+DEV and PROD use the same container names and ports — only one of them may run on a host at a time.
+
+### DEV: Build, push, pull, run
+
+#### One-time per host: enable the insecure registry
+Add the local registry to `/etc/docker/daemon.json` and restart the Docker daemon:
 ```bash
-docker-compose -f dc-plc-datalink-rfc1006-local.yml up -d
+sudo tee /etc/docker/daemon.json > /dev/null <<'JSON'
+{ "insecure-registries": ["192.168.0.121:5000"] }
+JSON
+sudo systemctl restart docker
+```
+If the file already contains other keys, merge `"insecure-registries"` in instead of overwriting.
+
+#### One-time: start the local registry
+```bash
+docker compose -f dc-registry-local.yml up -d
+# verify (empty catalog on first start):
+curl http://192.168.0.121:5000/v2/_catalog
 ```
 
-#### Build and starting the Container from ACR OPTIONAL
-Require credential and is optional.
-**Login to ACR**
+#### Per iteration: build → push → pull → run
+```bash
+docker compose -f dc-plc-datalink-rfc1006-dev.yml build
+docker compose -f dc-plc-datalink-rfc1006-dev.yml push
+docker compose -f dc-plc-datalink-rfc1006-dev.yml pull
+docker compose -f dc-plc-datalink-rfc1006-dev.yml up -d --no-build
+```
+The UI is then reachable on the host at `http://192.168.0.121` (port 80). The `dev` image tag is overwritten on every build — there is no SHA or timestamp suffix.
+
+To stop the DEV app stack (registry keeps running):
+```bash
+docker compose -f dc-plc-datalink-rfc1006-dev.yml down
+```
+
+### PROD: Pull from ACR
+Requires Azure credentials.
 ```bash
 az login
 az acr login -n onconnecting
+docker compose -f dc-plc-datalink-rfc1006-acr.yml pull
+docker compose -f dc-plc-datalink-rfc1006-acr.yml up -d
 ```
 
-**Pull from ACR**
+### Backend lint/format
 ```bash
-docker pull onconnecting.azurecr.io/plc-datalink-rfc1006-database:latest
-docker pull onconnecting.azurecr.io/plc-datalink-rfc1006-backend:latest
-docker pull onconnecting.azurecr.io/plc-datalink-rfc1006-frontend:latest
-```
-**Starting the Container localy**
-To start with build the container localy, execute `dc-plc-datalink-rfc1006-local.yml` file. This Docker Compose configuration sets up three services, `plc-datalink-rfc1006-database`, `plc-datalink-rfc1006-backend` and `plc-datalink-rfc1006-frontend`, along with a network and a volume.
-```bash
-docker-compose -f dc-plc-datalink-rfc1006-local.yml up -d
-```
-**Starting the Container from ACR**
-To start with build the container localy, execute `dc-plc-datalink-rfc1006-acr.yml` file. This Docker Compose configuration sets up three services, `plc-datalink-rfc1006-database`, `plc-datalink-rfc1006-backend` and `plc-datalink-rfc1006-frontend`, along with a network and a volume.
-```bash
-docker-compose -f dc-plc-datalink-rfc1006-acr.yml up -d
+cd backend
+ruff check src test
+ruff format src test
+# auto-fix:
+ruff check --fix src test && ruff format src test
 ```
 
-#### Container: 
+#### Containers (DEV and PROD)
+The image source differs between DEV (local registry, tag `dev`) and PROD (ACR, tag from `IMAGE_TAG`); names, hostnames, ports, and volumes are identical.
+
 - **plc-datalink-rfc1006-database:**
-  - Image: `onconnecting.azurecr.io/plc-datalink-rfc1006-database:latest`
+  - DEV Image: `${LOCAL_REGISTRY:-192.168.0.121:5000}/plc-datalink-rfc1006-database:dev`
+  - PROD Image: `${ACR_REGISTRY:-onconnecting.azurecr.io}/plc-datalink-rfc1006-database:${IMAGE_TAG:-latest}`
   - Container Name: `plc-datalink-rfc1006-database`
   - Hostname: `plc-datalink-rfc1006-database`
   - Volumes: Mounts a volume named `plc-datalink-rfc1006-database-data` to `/opt/couchdb/data`
   - Networks: Connected to the `plc-datalink-rfc1006-network`
 
 - **plc-datalink-rfc1006-backend:**
-  - Image: `onconnecting.azurecr.io/plc-datalink-rfc1006-backend:latest`
+  - DEV Image: `${LOCAL_REGISTRY:-192.168.0.121:5000}/plc-datalink-rfc1006-backend:dev`
+  - PROD Image: `${ACR_REGISTRY:-onconnecting.azurecr.io}/plc-datalink-rfc1006-backend:${IMAGE_TAG:-latest}`
   - Container Name: `plc-datalink-rfc1006-backend`
   - Hostname: `plc-datalink-rfc1006-backend`
-  - Dependencies: Depends on `plc-datalink-rfc1006-database`. 
+  - Dependencies: Depends on `plc-datalink-rfc1006-database`.
   - Volumes: Mounts a volume named `plc-datalink-rfc1006-backend-data` to `/etc/telegraf`
   - Networks: Connected to the `plc-datalink-rfc1006-network`
 
 - **plc-datalink-rfc1006-frontend:**
-  - Image: `onconnecting.azurecr.io/plc-datalink-rfc1006-frontend:latest`
+  - DEV Image: `${LOCAL_REGISTRY:-192.168.0.121:5000}/plc-datalink-rfc1006-frontend:dev`
+  - PROD Image: `${ACR_REGISTRY:-onconnecting.azurecr.io}/plc-datalink-rfc1006-frontend:${IMAGE_TAG:-latest}`
   - Container Name: `plc-datalink-rfc1006-frontend`
   - Hostname: `plc-datalink-rfc1006-frontend`
   - Ports: Exposes port `80` on the host and forwards it to port `80` on the container

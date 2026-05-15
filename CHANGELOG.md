@@ -16,10 +16,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `architecture/decisions/` for Architecture Decision Records, with a README and `ADR-0000-template.md`.
 - `architecture/decisions/ADR-0001-backend-application-entrypoint.md` documenting the `init.py` → `app.py` rename and the rejected alternative (app-factory in `__init__.py`).
 - `architecture/decisions/ADR-0002-python-project-metadata.md` documenting the coexistence of `pyproject.toml` and `requirements.txt`.
+- `architecture/decisions/ADR-0003-frontend-ui-foundation-angular-cdk.md` selecting `@angular/cdk@19` as the UI foundation and rejecting Bootstrap, Material, PrimeNG, and Tailwind for the rewrite.
+- `architecture/decisions/ADR-0004-frontend-greenfield-migration-strategy.md` selecting a greenfield parallel project (`frontend-next/`) with a single directory-swap cutover as the rewrite strategy.
+- `docs/features/frontend-ci-rewrite/scope.md` with the corresponding feature scope.
+- `architecture/decisions/ADR-0005-local-insecure-registry-for-dev-image-flow.md` documenting the DEV/PROD split: self-hosted insecure registry on `192.168.0.121:5000`, build-push-pull-up loop, single `dev` tag, no Makefile.
+- `docs/features/dev-prod-split/scope.md` with the corresponding feature scope.
+- `dc-registry-local.yml` running `registry:2` on `192.168.0.121:5000` with persistent storage in the named volume `plc-datalink-rfc1006-registry-data` and `REGISTRY_STORAGE_DELETE_ENABLED=true`.
+- `dc-plc-datalink-rfc1006-dev.yml` for the DEV app stack with combined `image:` + `build:` directives pointing at `${LOCAL_REGISTRY:-192.168.0.121:5000}/plc-datalink-rfc1006-{service}:dev`.
+- `.env.example` entries `LOCAL_REGISTRY=192.168.0.121:5000` and `LOCAL_REGISTRY_PORT=5000`.
 - `.editorconfig` at the repository root (UTF-8, LF, 4 spaces Python / 2 spaces YAML+TS+JSON, tabs in Makefiles).
 - `.dockerignore` for `backend/`, `frontend/`, and `database/` build contexts to exclude VCS, IDE, venv, `node_modules/`, tests, and logs from images.
 - `.github/PULL_REQUEST_TEMPLATE.md` covering change type, affected areas, related scope/ADR, breaking-change flag, test plan, and a checklist for CHANGELOG / docs / secrets.
-- Top-level `Makefile` with targets for local stack (`build`, `up`, `down`, `restart`, `logs`, `ps`, `clean`), ACR stack (`build-acr`, `up-acr`, `down-acr`), and backend dev tooling (`lint`, `format`).
 - `backend/pyproject.toml` (PEP 621) declaring project metadata, runtime deps (mirror of `requirements.txt`), a `dev` extras group (`ruff`, `pytest`), and config for Ruff and Pytest.
 - `frontend/.prettierrc` with Angular-aligned defaults (single quotes, 2-space, 120 col).
 - `.pre-commit-config.yaml` wiring Ruff (lint + format) for the backend, Prettier for the frontend, and standard hygiene hooks (trailing whitespace, EOF, YAML check, large-file guard, private-key detection, merge-conflict marker check).
@@ -38,11 +45,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 - Tracking of the `.claude/` directory and `doc/design/onconnecting-ci/` from version control via `.gitignore`.
+- `dc-plc-datalink-rfc1006-local.yml` — superseded by `dc-plc-datalink-rfc1006-dev.yml`, which runs the same three services but goes through the local registry (build → push → pull → up) so the DEV loop matches the PROD pull mechanics.
+- Top-level `Makefile` — the stack is bedient directly with `docker compose` calls; backend lint/format runs as `ruff check` / `ruff format` from `backend/`. README documents the new commands.
 
 ### Fixed
 - `.gitignore` now also excludes `backend/.venv/`, `__pycache__/`, `*.pyo`, `*.egg-info/`, `.pytest_cache/`, `.coverage`, `htmlcov/`, `node_modules/`, `frontend/dist/`, `.angular/`, and `*.swp` / `*.swo` swap files — previously these could have been accidentally committed.
 - Bump the pinned SHA256 of the InfluxData GPG key in `backend/dockerfile-plc-datalink-rfc1006-backend` to `40557e26…4d5dac` (the value currently served at `repos.influxdata.com/influxdata-archive.key`). The previous pin (`943666…7515`) no longer matched after an upstream key rotation, blocking the backend image build at step 4 of 20.
 
 ### Notes
-- The newly enabled lint workflow (Ruff for backend, Prettier for frontend) will likely fail on the first push because existing files were written before either tool was configured. Run `make format` (`ruff format` on backend) and `npx prettier --write "src/**/*.{ts,js,html,css,scss}"` inside `frontend/` once to establish a baseline.
+- The newly enabled lint workflow (Ruff for backend, Prettier for frontend) will likely fail on the first push because existing files were written before either tool was configured. Run `ruff format src test` inside `backend/` and `npx prettier --write "src/**/*.{ts,js,html,css,scss}"` inside `frontend/` once to establish a baseline.
 - Pre-commit hooks only activate after `pre-commit install` is run in the working tree.
+- The DEV registry is **insecure** (HTTP). Every host that pushes or pulls must list `192.168.0.121:5000` under `insecure-registries` in `/etc/docker/daemon.json` and reload the daemon (`systemctl restart docker`). README contains the one-liner. Do not reuse this registry for PROD.
