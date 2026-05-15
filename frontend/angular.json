@@ -10,10 +10,10 @@
           "style": "css",
           "changeDetection": "OnPush",
           "standalone": true,
-          "skipTests": true
+          "skipTests": false
         },
-        "@schematics/angular:directive": { "standalone": true, "skipTests": true },
-        "@schematics/angular:pipe": { "standalone": true, "skipTests": true }
+        "@schematics/angular:directive": { "standalone": true, "skipTests": false },
+        "@schematics/angular:pipe": { "standalone": true, "skipTests": false }
       },
       "root": "",
       "sourceRoot": "src",
