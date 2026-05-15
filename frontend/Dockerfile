@@ -1,5 +1,5 @@
 # Stage 1: Build the Angular 19 application.
-FROM node:22-alpine AS build-stage
+FROM node:26-alpine AS build-stage
 
 WORKDIR /app
 
