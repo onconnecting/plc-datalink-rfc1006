@@ -45,6 +45,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The ACR compose file references images via `${ACR_REGISTRY:-onconnecting.azurecr.io}/...:${IMAGE_TAG:-latest}`.
 - `backend/config/env` no longer carries the CouchDB credentials; they are supplied by the compose `environment:` section.
 - `database/test/couch-cmd.sh` and `database/test/devBoard1Rest.sh` fail fast if `COUCHDB_USER` / `COUCHDB_PASSWORD` are not exported.
+- Rename the three Dockerfiles to the canonical `Dockerfile` (`backend/Dockerfile`, `frontend/Dockerfile`, `database/Dockerfile`). The previous `dockerfile-plc-datalink-rfc1006-{backend,frontend,database}` names were lowercase, redundantly carried the repo prefix, lost IDE/GitHub-linguist syntax detection, and blocked Dependabot's `docker` ecosystem (which only matches `Dockerfile` / `Dockerfile.*`). `dc-plc-datalink-rfc1006-dev.yml` drops the explicit `dockerfile:` keys (the default is now correct), `.github/workflows/docker-image.yml` drops the `--file` argument from the three `az acr build` calls, and `.github/dependabot.yml` now enables `docker` ecosystem updates for `/backend`, `/frontend`, and `/database`. Internal references in `.claude/rules/`, `.claude/skills/`, `backend/README.md`, and `database/README.md` updated. No behavior change — the ACR compose stack is unaffected (image-only, no build).
 
 ### Removed
 - Tracking of the `.claude/` directory and `doc/design/onconnecting-ci/` from version control via `.gitignore`.

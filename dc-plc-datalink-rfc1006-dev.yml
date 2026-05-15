@@ -5,7 +5,6 @@ services:
     image: ${LOCAL_REGISTRY:-192.168.0.121:5000}/plc-datalink-rfc1006-database:dev
     build:
       context: ./database
-      dockerfile: dockerfile-plc-datalink-rfc1006-database
     container_name: plc-datalink-rfc1006-database
     hostname: plc-datalink-rfc1006-database
     ports:
@@ -22,7 +21,6 @@ services:
     image: ${LOCAL_REGISTRY:-192.168.0.121:5000}/plc-datalink-rfc1006-backend:dev
     build:
       context: ./backend
-      dockerfile: dockerfile-plc-datalink-rfc1006-backend
     container_name: plc-datalink-rfc1006-backend
     hostname: plc-datalink-rfc1006-backend
     environment:
@@ -39,7 +37,6 @@ services:
     image: ${LOCAL_REGISTRY:-192.168.0.121:5000}/plc-datalink-rfc1006-frontend:dev
     build:
       context: ./frontend
-      dockerfile: dockerfile-plc-datalink-rfc1006-frontend
     container_name: plc-datalink-rfc1006-frontend
     hostname: plc-datalink-rfc1006-frontend
     ports:
