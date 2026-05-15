@@ -1,6 +1,6 @@
 # Feature Scope: Project Structure — Best Practices Alignment
 
-**Status:** Phase A implemented (Phase B & C deferred)
+**Status:** Phase A + B + C implemented
 **Created:** 2026-05-15
 **Branch:** `master` (user opted to stay on the current branch)
 
@@ -28,18 +28,21 @@ Phasenweise — der Nutzer kann nach Approval entscheiden, was tatsächlich umge
 - [x] `.github/PULL_REQUEST_TEMPLATE.md`
 - [x] `docs/features/project-structure-best-practices/scope.md` (= diese Datei)
 
-### Phase B — Umbenennen / leichte Refactors (Approval pro Punkt)
-- [ ] `backend/src/init.py` → entweder umbenennen in `backend/src/app.py` ODER Inhalt in `__init__.py` zusammenführen (Flask-App-Factory-Pattern). **Touch-Punkte:** Aufrufer von `from .init import …`, Dockerfile/supervisord Startbefehl
-- [ ] `backend/config/env` → `backend/config/env.example` (markiert klar als Template); echte ENV bleibt außerhalb des Repos
-- [ ] `backend/test/` aufsplitten: `backend/test/curl/` (Shell-Skripte) und `backend/test/scripts/` (Python-Helper) — keine Logikänderung, nur klarere Verzeichnisse
-- [ ] `doc/` (Singular) auflösen: interne Design-Doku entweder umziehen in `docs/internal/` (gitignored) oder ganz aus dem Repo nehmen — Status klären
-- [ ] Top-Level `Makefile` ODER `tasks.sh` mit Standard-Targets (`build`, `up`, `down`, `logs`, `test`)
+### Phase B — Umbenennen / leichte Refactors (umgesetzt 2026-05-15)
+- [x] `backend/src/init.py` → `backend/src/app.py` (Variante: schlichter Rename, kein App-Factory-Rewrite). `__init__.py` bleibt leer. Gunicorn-Target in `supervisord.conf` aktualisiert auf `src.app:app`. Dokumentiert in ADR-0001.
+- [x] `backend/config/env` → `backend/config/env.example`. Dockerfile `COPY`-Pfad aktualisiert.
+- [x] `backend/test/` aufgesplittet: `backend/test/curl/` (5 Shell-Skripte) und `backend/test/scripts/` (`plc_datalink_rfc1006_linux.py`).
+- [x] `doc/` (Singular): _keine Aktion nötig_ — Inhalt komplett gitignored (`doc/design/onconnecting-ci/`), nichts im Repo getrackt.
+- [x] Top-Level `Makefile` mit Targets `help`, `build`, `up`, `down`, `restart`, `logs`, `ps`, `clean`, `build-acr`, `up-acr`, `down-acr`, `lint`, `format`.
 
-### Phase C — Optional, höhere Auswirkung (nur mit explizitem Approval)
-- [ ] `backend/pyproject.toml` einführen (PEP 621), `requirements.txt` bleibt zunächst parallel für Docker-Build — Modernisierung des Python-Setups
-- [ ] Pre-commit-Hook (`.pre-commit-config.yaml`) mit Ruff/Black für Backend, Prettier für Frontend
-- [ ] CI um Lint- und Test-Jobs erweitern (`.github/workflows/lint.yml`, `test.yml`); aktuell nur `docker-image.yml`
-- [ ] Dependabot-Konfiguration (`.github/dependabot.yml`)
+### Phase C — Tooling-Erweiterung (umgesetzt 2026-05-15)
+- [x] `backend/pyproject.toml` (PEP 621): Metadata, Runtime-Deps gespiegelt zu `requirements.txt`, `dev`-Extras (`ruff`, `pytest`), Konfiguration für Ruff und Pytest. Docker-Build bleibt auf `requirements.txt`. Dokumentiert in ADR-0002.
+- [x] `.pre-commit-config.yaml`: Ruff (lint + format) für Backend, Prettier für Frontend, Standard-Hygiene-Hooks (trailing whitespace, EOF, YAML, large-file, private-key, merge-conflict).
+- [x] `.github/workflows/lint.yml` (Ruff backend + Prettier frontend) und `.github/workflows/test.yml` (Python compile + Angular build).
+- [x] `.github/dependabot.yml` für pip, npm, github-actions wöchentlich. **Docker-Ecosystem bewusst ausgelassen** — Dependabots Docker-Integration erwartet Dateinamen `Dockerfile` / `Dockerfile.*`, der Repo nutzt `dockerfile-plc-datalink-rfc1006-*`. Eine Umbenennung wäre eigene Entscheidung (Compose & CI mit anpassen).
+- [x] `frontend/.prettierrc` mit Angular-üblichen Defaults (Single Quotes, 2 Spaces, 120 Spalten).
+
+**Bekannte Folgen:** Lint-Workflow wird beim ersten Push voraussichtlich rote Checks erzeugen, da der bestehende Code (Python + TypeScript) vor Aktivierung von Ruff/Prettier geschrieben wurde. Behebung: einmalig `make format` und `npx prettier --write …` im Frontend laufen lassen, danach in einem separaten Commit einchecken.
 
 ## Out of Scope
 - Funktionale Änderungen an Backend, Frontend, Telegraf oder PLC-Logik

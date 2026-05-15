@@ -1,0 +1,26 @@
+# Dependabot configuration.
+#
+# Note: the docker ecosystem is intentionally omitted because this repo uses
+# non-standard Dockerfile names (`dockerfile-plc-datalink-rfc1006-*`). Dependabot's
+# docker integration looks for files named `Dockerfile` or `Dockerfile.*` and
+# does not currently support custom names. Renaming the Dockerfiles is a separate
+# decision (would also require updating compose files and CI workflows).
+
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

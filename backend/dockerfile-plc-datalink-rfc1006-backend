@@ -53,8 +53,8 @@ ENV PATH="/venv/bin:$PATH"
 # Copy application files
 COPY src /app/src
 
-# Copy env
-COPY /config/env /app/.env
+# Copy env template (renamed from `config/env` to make its purpose explicit)
+COPY /config/env.example /app/.env
 
 # Copy openapi yml
 COPY /openapi/plc_datalink_rfc1006_api.yml /app/openapi/

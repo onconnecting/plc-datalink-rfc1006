@@ -1,0 +1,65 @@
+# Project metadata and tool configuration.
+#
+# The Docker build still installs runtime dependencies from requirements.txt
+# (see dockerfile-plc-datalink-rfc1006-backend). Keep that list in sync with
+# [project.dependencies] below. See architecture/decisions/ADR-0002-python-project-metadata.md
+# for the rationale behind keeping both files.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plc-datalink-rfc1006"
+version = "0.1.0"
+description = "Flask REST API + Telegraf orchestration bridging S7 PLCs (RFC1006) to MQTT"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "../LICENSE" }
+authors = [
+    { name = "onconnecting" },
+]
+dependencies = [
+    "python-dotenv",
+    "requests",
+    "Flask",
+    "flask-cors",
+    "gunicorn",
+    "flask-swagger-ui",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.5.0",
+    "pytest>=8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+extend-exclude = [".venv", "test/curl"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line-too-long handled by formatter
+]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["test/scripts"]
+python_files = ["test_*.py", "*_test.py"]

@@ -1,0 +1,31 @@
+# Run `pre-commit install` once to enable these hooks locally.
+# See https://pre-commit.com/ for installation.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'
+      - id: end-of-file-fixer
+      - id: check-yaml
+        exclude: '\.github/workflows/.*\.yml$'  # workflow files use templated expressions
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: detect-private-key
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/.*\.py$
+      - id: ruff-format
+        files: ^backend/.*\.py$
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        files: ^frontend/.*\.(ts|js|html|css|scss|json)$
