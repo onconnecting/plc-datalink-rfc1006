@@ -1,0 +1,25 @@
+name: plc-datalink-rfc1006-registry
+
+services:
+  plc-datalink-rfc1006-registry-local:
+    image: registry:2
+    container_name: plc-datalink-rfc1006-registry-local
+    hostname: plc-datalink-rfc1006-registry-local
+    restart: unless-stopped
+    ports:
+      - "${LOCAL_REGISTRY_PORT:-5000}:5000"
+    environment:
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    volumes:
+      - plc-datalink-rfc1006-registry-data:/var/lib/registry
+    networks:
+      - plc-datalink-rfc1006-registry-network
+
+networks:
+  plc-datalink-rfc1006-registry-network:
+    name: plc-datalink-rfc1006-registry-network
+    driver: bridge
+
+volumes:
+  plc-datalink-rfc1006-registry-data:
+    name: plc-datalink-rfc1006-registry-data
