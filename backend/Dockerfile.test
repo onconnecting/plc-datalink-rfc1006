@@ -7,7 +7,7 @@
 # E2E / testcontainers usage requires the docker socket mounted:
 #         docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 #                    plc-datalink-rfc1006-backend-test
-FROM python:3.9-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
