@@ -1,81 +1,95 @@
-<div class="form-container-base">
-  <h2>PLC Overview</h2>
-  <div style="border-bottom: 4px solid rgb(35, 142, 168); margin: 20px 0;"></div>
+<section class="oc-page">
+  <h1 class="oc-page__title">PLC State</h1>
+  <p class="oc-page__lead">
+    Live-Status der konfigurierten Machines. Polling im 5-Sekunden-Intervall.
+  </p>
 
-  <!-- Iterate over each machine to create separate form-container classes -->
-  <div *ngFor="let machine of machineStates" class="form-container">
-    <!-- Single machine card -->
-    <div (click)="toggleMachineConfig(machine.name)" class="machine-info machine-card">
-      <div class="machine-content">
-        <!-- Machine details on the left -->
-        <div class="machine-info">
-          <h3>{{ machine.name }}</h3>
-          <p>Status: <span [class.connected]="machine.state.State.active_connection">
-            {{ machine.state.State.active_connection ? 'Connected' : 'Disconnected' }}
-          </span></p>
-          <p>Updated: {{ machine.state.State.last_update || 'N/A' }}</p>
-        </div>
+  @if (loaded() && rows().length === 0) {
+    <oc-card>
+      <p class="oc-page__empty">
+        Keine Machine konfiguriert. Lege eine Konfiguration unter
+        <a routerLink="/create-configuration">Create Configuration</a> an.
+      </p>
+    </oc-card>
+  }
 
-        <!-- Action buttons aligned to the right -->
-        <div class="machine-buttons">
-          <button class="btn btn-danger" (click)="onRemoveMachine(machine.name, $event)">Remove</button>          
-          <button class="btn btn-warning" (click)="onStopMachine(machine.name, $event)">Stop</button>
-          <button class="btn btn-success" (click)="onStartMachine(machine.name, $event)">Start</button>          
+  @for (row of rows(); track row.name) {
+    <oc-card>
+      <div class="oc-machine">
+        <button
+          type="button"
+          class="oc-machine__summary"
+          (click)="toggle(row.name)"
+          [attr.aria-expanded]="expandedName() === row.name"
+        >
+          <div class="oc-machine__head">
+            <h2 class="oc-machine__name">{{ row.name }}</h2>
+            <oc-status-pill
+              [label]="stateLabel(row.state)"
+              [tone]="stateTone(row.state)"
+            />
+          </div>
+          <dl class="oc-machine__meta">
+            <div class="oc-machine__meta-row">
+              <dt>Letzte Aktualisierung</dt>
+              <dd class="oc-machine__value">{{ lastUpdate(row.state) }}</dd>
+            </div>
+          </dl>
+        </button>
+
+        <div class="oc-machine__actions">
+          <button type="button" ocButton variant="secondary" (click)="start(row.name, $event)">
+            Start
+          </button>
+          <button type="button" ocButton variant="secondary" (click)="stop(row.name, $event)">
+            Stop
+          </button>
+          <button type="button" ocButton variant="danger" (click)="remove(row.name, $event)">
+            Remove
+          </button>
         </div>
       </div>
 
-      <div [@slideDown]="expandedMachine === machine.name ? 'expanded' : 'collapsed'" class="machine-details">
-        <ng-container *ngIf="expandedMachine === machine.name && machineConfig">
-          <h4>Configuration Details</h4>
-          <div class="config-details">
-            <div class="section">
-              <h5>Machine Data</h5>
-              <div class="info-row">
-                <span class="label">Machine:</span>
-                <span class="value">{{ machineConfig.machineData.machineName }}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Rack:</span>
-                <span class="value">{{ machineConfig.machineData.plcRack }}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Slot:</span>
-                <span class="value">{{ machineConfig.machineData.plcSlot }}</span>
-              </div>
+      @if (expandedName() === row.name) {
+        <section class="oc-machine__details">
+          @if (expandedConfig(); as cfg) {
+            <div class="oc-machine__group">
+              <h3 class="oc-machine__group-title">Machine Data</h3>
+              <dl class="oc-machine__kv">
+                <dt>Name</dt><dd class="oc-machine__value">{{ cfg.machineData.machineName }}</dd>
+                <dt>PLC IP</dt><dd class="oc-machine__value">{{ cfg.machineData.plcIp }}</dd>
+                <dt>Port</dt><dd class="oc-machine__value">{{ cfg.machineData.plcPort }}</dd>
+                <dt>Rack</dt><dd class="oc-machine__value">{{ cfg.machineData.plcRack }}</dd>
+                <dt>Slot</dt><dd class="oc-machine__value">{{ cfg.machineData.plcSlot }}</dd>
+                <dt>Batch</dt><dd class="oc-machine__value">{{ cfg.machineData.pduSize }}</dd>
+                <dt>Intervall</dt><dd class="oc-machine__value">{{ cfg.machineData.requestInterval }} s</dd>
+              </dl>
             </div>
-            <div class="section">
-              <h5>MQTT Settings</h5>
-              <div class="info-row"></div>
-                <span class="label">Address:</span>
-                <span class="value">{{ machineConfig.mqttData.mqttIp }}:{{ machineConfig.mqttData.mqttPort }}</span>
-              <div class="info-row">
-                <span class="label">Topic:</span>
-                <span class="value">{{ machineConfig.mqttData.mqttTopic }}</span>
-              </div>
+            <div class="oc-machine__group">
+              <h3 class="oc-machine__group-title">MQTT</h3>
+              <dl class="oc-machine__kv">
+                <dt>Broker</dt>
+                <dd class="oc-machine__value">{{ cfg.mqttData.mqttIp }}:{{ cfg.mqttData.mqttPort }}</dd>
+                <dt>Topic</dt>
+                <dd class="oc-machine__value">{{ cfg.mqttData.mqttTopic }}</dd>
+              </dl>
             </div>
-            <div class="section">
-              <h5>PLC Tags</h5>
-              <ul>
-                <li *ngFor="let tag of machineConfig.plcTagData">
-                  {{ tag.tagName }} ({{ tag.tagAddress }})
-                </li>
+            <div class="oc-machine__group">
+              <h3 class="oc-machine__group-title">PLC Tags</h3>
+              <ul class="oc-machine__tags">
+                @for (tag of cfg.plcTagData; track tag.tagAddress) {
+                  <li>
+                    <span class="oc-machine__value">{{ tag.tagAddress }}</span>
+                    <span class="oc-machine__tag-name">{{ tag.tagName }}</span>
+                  </li>
+                }
               </ul>
             </div>
-          </div>
-        </ng-container>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Toast Notification -->
-<div class="toast-notification success" *ngIf="submissionState.success" [@fadeOut]="submissionState.success ? 'active' : 'inactive'">
-  <span class="toast-icon">✓</span>
-  <div class="toast-message">{{ toastNotifyMessage }}</div>
-</div>
-
-<!-- Error Toast Notification -->
-<div class="toast-notification error" *ngIf="submissionState.error" [@fadeOut]="submissionState.error ? 'active' : 'inactive'">
-  <span class="toast-icon">⚠️</span>
-  <div class="toast-message">{{ toastNotifyMessage }}</div>
-</div>
+          } @else {
+            <p class="oc-machine__loading">Konfiguration wird geladen …</p>
+          }
+        </section>
+      }
+    </oc-card>
+  }
+</section>

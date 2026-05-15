@@ -1,0 +1,90 @@
+/* onconnecting Design Tokens — single source of truth.
+ *
+ * Per ADR-0003: every color, radius, spacing, and font reference in the
+ * frontend-next/ project must resolve to a token declared here. The
+ * Stylelint config disallows raw hex/rgb in any other CSS file.
+ *
+ * Reference: docs/design/onconnecting-ci/ci-manual_onconnecting.md (v1.5)
+ * Rule index: .claude/rules/frontend.md
+ */
+
+:root {
+  /* === Color: Accent (Cyan) — signal color, CTAs, active states === */
+  --color-accent-50: #ecfeff;
+  --color-accent-300: #67e8f9;
+  --color-accent-500: #06b6d4;
+  --color-accent-600: #0891b2;
+  --color-accent-700: #0e7490;
+
+  /* === Color: Neutral (Slate) === */
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+
+  /* === Color: Secondary Gray === */
+  --color-gray-400: #94a3b8;
+  --color-gray-700: #334155;
+
+  /* === Color: Functional (status feedback only) === */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  /* === Surface / canvas === */
+  --color-surface: #ffffff;
+  --color-surface-muted: var(--color-neutral-50);
+
+  /* === Typography ===
+   * Headlines, labels, code, technical values (IP, port, PLC address) → Consolas.
+   * Body, descriptions, help text → Calibri Light.
+   * Headlines never bold (CI § 4.1), never centered.
+   */
+  --font-headline: Consolas, "Cascadia Mono", "DejaVu Sans Mono",
+    "Liberation Mono", "Courier New", monospace;
+  --font-body: "Calibri Light", "Segoe UI Light", "Helvetica Neue Light",
+    -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: Consolas, "Cascadia Mono", "DejaVu Sans Mono", monospace;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 0.9375rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.375rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2rem;
+  --font-size-4xl: 2.625rem;
+  --font-size-5xl: 3.5rem;
+
+  --line-height-tight: 1.1;
+  --line-height-snug: 1.3;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.65;
+
+  /* === Spacing (4 px base) === */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+
+  /* === Radius — sharp edges or minimal radius. No pill shapes. === */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+
+  /* === Layout === */
+  --layout-max-width: 1280px;
+  --layout-gutter: var(--space-6);
+}

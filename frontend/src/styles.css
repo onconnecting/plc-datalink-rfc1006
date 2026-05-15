@@ -1,1 +1,95 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global stylesheet — token import + minimal reset/base. */
+
+@import "./styles/_tokens.css";
+@import "./styles/_components.css";
+@import "@angular/cdk/overlay-prebuilt.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-surface);
+  color: var(--color-neutral-700);
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-relaxed);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headlines — Consolas, never bold, left-aligned. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-headline);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-align: left;
+  margin: 0 0 var(--space-4);
+  color: var(--color-neutral-900);
+}
+
+h1 { font-size: var(--font-size-3xl); line-height: var(--line-height-tight); }
+h2 { font-size: var(--font-size-2xl); line-height: var(--line-height-snug); }
+h3 { font-size: var(--font-size-xl);  line-height: var(--line-height-snug); }
+h4 { font-size: var(--font-size-lg);  line-height: var(--line-height-snug); }
+
+p {
+  margin: 0 0 var(--space-4);
+  max-width: 75ch;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
+
+a {
+  color: var(--color-accent-600);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+a:hover { color: var(--color-accent-700); }
+a:focus-visible {
+  outline: 2px solid var(--color-accent-500);
+  outline-offset: 2px;
+}
+
+/* Accessible focus baseline for interactive elements. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent-500);
+  outline-offset: 2px;
+}
+
+/* Aria-live region for toast announcements (used in Phase B). */
+.oc-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

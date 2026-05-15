@@ -1,0 +1,33 @@
+:host {
+  display: block;
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.oc-card__header {
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-neutral-100);
+  padding-bottom: var(--space-3);
+}
+
+.oc-card__title {
+  margin: 0;
+  font-family: var(--font-headline);
+  font-weight: 400;
+  font-size: var(--font-size-lg);
+  color: var(--color-neutral-900);
+}
+
+.oc-card__subtitle {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
+.oc-card__body {
+  display: block;
+}

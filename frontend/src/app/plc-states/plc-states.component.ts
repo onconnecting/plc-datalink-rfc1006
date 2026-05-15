@@ -1,229 +1,194 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { interval, Observable, Subscription, forkJoin } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
-import { trigger, state, style, transition, animate } from '@angular/animations';
-import { HttpErrorResponse } from '@angular/common/http';
-import { BackendRequestService } from '../services/backend-request.service';
-import { ConfigurationDataService } from '../services/configuration-data.service';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import { EMPTY, forkJoin, interval, of, switchMap } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { MachineService } from '../services/machine.service';
+import { ConfigService } from '../services/config.service';
+import { formatBackendError } from '../services/error-message';
+import {
+  OcButtonDirective,
+  OcCardComponent,
+  OcStatusPillComponent,
+  ToastService,
+} from '../ui';
+import { MachineConfigurationDoc } from '../models/configuration.model';
+import { MachineStateBody } from '../models/machine-state.model';
 
-const fadeOutAnimation = trigger('fadeOut', [
-  state('active', style({ opacity: 1 })),
-  state('inactive', style({ opacity: 0 })),
-  transition('active => inactive', animate('3s'))
-]);
-
-// Structure to hold the machine name and state
-interface MachineState {
+interface MachineRow {
   name: string;
-  state: any;
+  state: MachineStateBody | null;
 }
 
+const POLL_INTERVAL_MS = 5000;
+
 @Component({
-  selector: 'plc-states',
+  selector: 'oc-plc-states',
+  standalone: true,
+  imports: [RouterLink, OcButtonDirective, OcCardComponent, OcStatusPillComponent],
   templateUrl: './plc-states.component.html',
   styleUrl: './plc-states.component.css',
-  animations: [fadeOutAnimation]
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PlcStates implements OnInit{
+export class PlcStatesComponent implements OnInit {
+  private readonly machineService = inject(MachineService);
+  private readonly configService = inject(ConfigService);
+  private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  machines: string[] = [];
-  machineStates: MachineState[] = [];
-  submissionState = { success: false, error: false };
-  toastNotifyMessage = '';
-  expandedMachine: string | null = null;
-  private subscription: Subscription | null = null;
-  machineConfig: any = null;
+  protected readonly rows = signal<MachineRow[]>([]);
+  protected readonly loaded = signal<boolean>(false);
+  protected readonly expandedName = signal<string | null>(null);
+  protected readonly expandedConfig = signal<MachineConfigurationDoc | null>(null);
 
-  constructor(
-      private configurationDataService: ConfigurationDataService,
-      private backendRequestService: BackendRequestService
-  ) {}
-
-  ngOnInit() {
-    this.fetchAllConfigurations();
+  ngOnInit(): void {
+    this.bootstrap();
   }
 
-  ngOnDestroy(): void {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-    }
-  }
-
-  /**
-   * Fetch the state of a single machine as an observable.
-   * @param machineName - The name of the machine to fetch the state for.
-   * @returns An observable representing the state of the given machine.
-   */
-  private fetchMachineStateObservable(machineName: string): Observable<any> {
-    return this.backendRequestService.getMachineCurrentState(machineName);
-  }
-
-  /**
-   *  Fetch all configured machines and then retrieve the state for each.
-   */
-  fetchAllConfigurations(): void {
-    this.backendRequestService.readStandbyMachines().subscribe(
-      response => {
-        this.machines = response.machines || [];
-  
-        this.fetchAllMachineStatesOnce();
-  
-        if (this.subscription) {
-          this.subscription.unsubscribe();
-        }
-  
-        if (this.machines.length > 0) {
-          this.subscription = interval(5000).pipe(
-            switchMap(() => {
-              const machineStateObservables = this.machines.map(machineName => 
-                this.fetchMachineStateObservable(machineName)
-              );
-  
-              return forkJoin(machineStateObservables);
-            })
-          ).subscribe(
-            results => {
-              this.machineStates = this.machines.map((machineName, index) => ({
-                name: machineName,
-                state: results[index]
-              }));
-            },
-            error => this.displayErrorMessage('Error fetching machine states.', error)
-          );
-        } else {
-          this.displaySuccessMessage('No machines configured.');
-        }
-      },
-      error => this.displayErrorMessage('Error fetching configured machines.', error)
-    );
-  }
-
-  /**
-   * Immediately fetch the states of all configured machines once.
-   */
-  private fetchAllMachineStatesOnce(): void {
-    if (this.machines.length === 0) {
-        this.machineStates = [];
-        this.displaySuccessMessage('No machines configured.');
-        return;
-    }
-
-    const machineStateObservables = this.machines.map(machineName => 
-        this.fetchMachineStateObservable(machineName)
-    );
-
-    forkJoin(machineStateObservables).subscribe(
-        results => {
-            if (results.length === 0) {
-                this.displaySuccessMessage('No machines configured.');
-                this.machineStates = [];
-            } else {
-                this.machineStates = this.machines.map((machineName, index) => ({
-                    name: machineName,
-                    state: results[index]
-                }));
-            }
+  private bootstrap(): void {
+    this.machineService
+      .standby()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          const names = response.machines ?? [];
+          this.rows.set(names.map((name) => ({ name, state: null })));
+          this.loaded.set(true);
+          if (names.length === 0) {
+            return;
+          }
+          this.fetchStatesOnce(names);
+          this.startPolling(names);
         },
-        error => this.displayErrorMessage('Error fetching machine states.', error)
-    );
+        error: (err) => {
+          this.loaded.set(true);
+          this.toast.error(
+            formatBackendError('Konfigurierte Machines konnten nicht geladen werden', err),
+          );
+        },
+      });
   }
 
-  /**
-   * Fetch the current state of a single machine and store the result.
-   * @param machineName - The name of the machine whose state is being fetched.
-   */
-  fetchMachineState(machineName: string): void {
-    this.backendRequestService.getMachineCurrentState(machineName).subscribe(
-      response => {
-        this.machineStates = [
-          ...this.machineStates.filter(ms => ms.name !== machineName),
-          { name: machineName, state: response }
-        ];
-      },
-      error => this.displayErrorMessage(`Error fetching state of ${machineName}`, error)
-    );
+  private fetchStatesOnce(names: string[]): void {
+    forkJoin(
+      names.map((name) =>
+        this.machineService.state(name).pipe(
+          catchError(() => of({ State: { active_connection: false, last_update: null } })),
+        ),
+      ),
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((responses) => {
+        this.rows.set(
+          names.map((name, index) => ({ name, state: responses[index].State })),
+        );
+      });
   }
 
-  /**
-   * Fetch all configurations from the backend and map them to ItemConfigurationModel objects.
-   */
-  fetchMachineConfiguration(machineName: string): void {
-    this.backendRequestService.readOneConfig(machineName).subscribe(
-      response => {
-        this.machineConfig = response;
-      },
-      (error: HttpErrorResponse) => {
-        this.displayErrorMessage('An error occurred while loading the configuration.', error);
-      }
-    );
+  private startPolling(initialNames: string[]): void {
+    let names = initialNames;
+    interval(POLL_INTERVAL_MS)
+      .pipe(
+        switchMap(() => {
+          names = this.rows().map((row) => row.name);
+          if (names.length === 0) {
+            return EMPTY;
+          }
+          return forkJoin(
+            names.map((name) =>
+              this.machineService.state(name).pipe(
+                catchError(() => of({ State: { active_connection: false, last_update: null } })),
+              ),
+            ),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((responses) => {
+        this.rows.set(
+          names.map((name, index) => ({ name, state: responses[index].State })),
+        );
+      });
   }
 
-  onStartMachine(machineName: string, event: Event): void {
-    event.stopPropagation();
-    this.backendRequestService.startMachineConfiguration(machineName).subscribe(
-      response => {
-        this.displaySuccessMessage(`Starting machine ${machineName} takes 20 seconds`);
-      },
-      error => this.displayErrorMessage(`Error starting machine ${machineName}`, error)
-    );
-  }
-
-  onStopMachine(machineName: string, event: Event): void {
-    event.stopPropagation();
-    this.backendRequestService.stopMachineConfiguration(machineName).subscribe(
-      response => {
-        this.displaySuccessMessage(`Machine ${machineName} stopped successfully.`);
-      },
-      error => this.displayErrorMessage(`Error stopping machine ${machineName}`, error)
-    );
-  }
-
-  onRemoveMachine(machineName: string, event: Event): void {
-    event.stopPropagation();
-    this.backendRequestService.removeMachine(machineName).subscribe(
-      response => {
-        this.machines = this.machines.filter(name => name !== machineName);
-        this.machineStates = this.machineStates.filter(ms => ms.name !== machineName);
-        this.displaySuccessMessage(`Machine ${machineName} removed successfully.`);
-      },
-      error => this.displayErrorMessage(`Error removing machine ${machineName}`, error)
-    );
-  }
-
-  /**
-   * Toggle the expanded state of the machine card and fetch its configuration if expanded.
-   * @param machineName - The name of the machine whose configuration is to be fetched.
-   */
-  toggleMachineConfig(machineName: string): void {
-    if (this.expandedMachine === machineName) {
-      this.expandedMachine = null;
-    } else {
-      this.expandedMachine = machineName;
-      this.fetchMachineConfiguration(machineName);
+  protected toggle(name: string): void {
+    if (this.expandedName() === name) {
+      this.expandedName.set(null);
+      this.expandedConfig.set(null);
+      return;
     }
+    this.expandedName.set(name);
+    this.expandedConfig.set(null);
+    this.configService
+      .readOne(name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (doc) => this.expandedConfig.set(doc),
+        error: (err) =>
+          this.toast.error(
+            formatBackendError(`Konfiguration für ${name} konnte nicht geladen werden`, err),
+          ),
+      });
   }
 
-  /**
-   * Display a success message and update the submission state.
-   * @param message - The success message to display.
-   */
-  private displaySuccessMessage(message: string): void {
-    this.submissionState = { success: true, error: false };
-    this.toastNotifyMessage = message;
-    setTimeout(() => (this.submissionState.success = false), 10000);
+  protected start(name: string, event: Event): void {
+    event.stopPropagation();
+    this.machineService
+      .start(name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () =>
+          this.toast.success(`Machine ${name} wird gestartet. Telegraf benötigt ca. 20 Sekunden.`),
+        error: (err) =>
+          this.toast.error(formatBackendError(`Start für Machine ${name} fehlgeschlagen`, err)),
+      });
   }
 
-  /**
-   * Log and display an error message, and update the submission state.
-   * @param defaultMessage - The default error message.
-   * @param error - The HTTP error response object.
-   */
-  private displayErrorMessage(defaultMessage: string, error: HttpErrorResponse): void {
-      this.submissionState = { success: false, error: true };
-      this.toastNotifyMessage = error.error?.error || defaultMessage;
-      setTimeout(() => (this.submissionState.error = false), 6000);
+  protected stop(name: string, event: Event): void {
+    event.stopPropagation();
+    this.machineService
+      .stop(name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.toast.success(`Machine ${name} gestoppt. Telegraf inaktiv.`),
+        error: (err) =>
+          this.toast.error(formatBackendError(`Stop für Machine ${name} fehlgeschlagen`, err)),
+      });
+  }
 
-      console.error('Status Code:', error.status);
-      console.error('Error Message:', error.message);
+  protected remove(name: string, event: Event): void {
+    event.stopPropagation();
+    this.machineService
+      .remove(name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.rows.update((rows) => rows.filter((r) => r.name !== name));
+          if (this.expandedName() === name) {
+            this.expandedName.set(null);
+            this.expandedConfig.set(null);
+          }
+          this.toast.success(`Machine ${name} entfernt.`);
+        },
+        error: (err) =>
+          this.toast.error(
+            formatBackendError(`Entfernen von Machine ${name} fehlgeschlagen`, err),
+          ),
+      });
+  }
+
+  protected stateTone(state: MachineStateBody | null): 'success' | 'error' | 'neutral' {
+    if (!state) return 'neutral';
+    return state.active_connection ? 'success' : 'error';
+  }
+
+  protected stateLabel(state: MachineStateBody | null): string {
+    if (!state) return 'unbekannt';
+    return state.active_connection ? 'connected' : 'disconnected';
+  }
+
+  protected lastUpdate(state: MachineStateBody | null): string {
+    if (!state || !state.last_update) return '—';
+    return state.last_update;
   }
 }

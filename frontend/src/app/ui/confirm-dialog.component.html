@@ -1,0 +1,12 @@
+<section class="oc-dialog" role="dialog" aria-modal="true" [attr.aria-labelledby]="'oc-dialog-title'">
+  <h3 id="oc-dialog-title" class="oc-dialog__title">{{ data.title }}</h3>
+  <p class="oc-dialog__message">{{ data.message }}</p>
+  <footer class="oc-dialog__footer">
+    <button type="button" ocButton variant="secondary" (click)="cancel()">
+      {{ cancelLabel }}
+    </button>
+    <button type="button" ocButton [variant]="confirmVariant" (click)="confirm()">
+      {{ confirmLabel }}
+    </button>
+  </footer>
+</section>

@@ -1,23 +1,12 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 
 @Component({
-  selector: 'app-header',
+  selector: 'oc-header',
+  standalone: true,
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './header.component.html',
-  styleUrl: './header.component.css'
+  styleUrl: './header.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HeaderComponent implements OnInit{
-
-  @Output() featureSelected=new EventEmitter<string>();
-  constructor(){}
-
-  onSelect(feature:string){
-    this.featureSelected.emit(feature);
-
-  }
-
-
-  ngOnInit() {
-  }
-  collapsed = true;
-
-}
+export class HeaderComponent {}

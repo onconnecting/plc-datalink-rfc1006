@@ -1,28 +1,39 @@
-<nav class="navbar navbar-default">
-    <div class="container-fluid">
-        <div class="navbar-header">
-            <button type="button" class="navbar-toggle" (click)="collapsed = !collapsed">
-              <span class="icon-bar" *ngFor="let iconBar of [1, 2, 3, 4]"></span>
-            </button>
-            <a routerLink="/" class="navbar-brand">PLC Datalink RFC1006</a>
-        </div>
-        <div class="navbar-collapse" [class.collapse]="collapsed" (window:resize)="collapsed = true">
-            <ul class="nav navbar-nav">
-                <li 
-                    routerLinkActive="active"
-                    [routerLinkActiveOptions]="{exact: true}">
-                    <a routerLink="/" (click)="onSelect('plc-state')">PLC State</a>
-                </li>
-                <li routerLinkActive="active">
-                    <a routerLink="/configuration-overview" (click)="onSelect('plc-configuration')">Configuration Overview</a>
-                </li>
-                <li routerLinkActive="active">
-                    <a routerLink="/create-configuration" (click)="onSelect('create-configuration')">Create Configuration</a>
-                </li>
-                <li>
-                    <a href="/swagger" target="_blank">API Definition</a>
-                </li>
-            </ul>
-        </div>
-    </div>
-</nav>
+<header class="oc-header">
+  <a routerLink="/plc-states" class="oc-header__brand" aria-label="onconnecting Startseite">
+    <img
+      class="oc-header__logo"
+      src="assets/logo/onconnecting_slate.svg"
+      alt=""
+      width="180"
+      height="32"
+    />
+    <span class="oc-header__sublabel">PLC Datalink · RFC1006</span>
+  </a>
+
+  <nav class="oc-header__nav" aria-label="Hauptnavigation">
+    <a
+      class="oc-header__link"
+      routerLink="/plc-states"
+      routerLinkActive="oc-header__link--active"
+    >
+      PLC State
+    </a>
+    <a
+      class="oc-header__link"
+      routerLink="/configuration-overview"
+      routerLinkActive="oc-header__link--active"
+    >
+      Configuration Overview
+    </a>
+    <a
+      class="oc-header__link"
+      routerLink="/create-configuration"
+      routerLinkActive="oc-header__link--active"
+    >
+      Create Configuration
+    </a>
+    <a class="oc-header__link" href="/swagger" target="_blank" rel="noopener">
+      API Definition
+    </a>
+  </nav>
+</header>

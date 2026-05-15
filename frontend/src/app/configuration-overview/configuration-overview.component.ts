@@ -1,131 +1,121 @@
-import { Component, OnInit } from '@angular/core';
-import { trigger, state, style, transition, animate } from '@angular/animations';
-import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { ItemConfigurationModel } from '../models/item-configuration.model';
-import { BackendRequestService } from '../services/backend-request.service';
-import { ConfigurationDataService } from '../services/configuration-data.service';
-
-const fadeOutAnimation = trigger('fadeOut', [
-  state('active', style({ opacity: 1 })),
-  state('inactive', style({ opacity: 0 })),
-  transition('active => inactive', animate('3s'))
-]);
+import { ConfigService } from '../services/config.service';
+import { MachineService } from '../services/machine.service';
+import { formatBackendError } from '../services/error-message';
+import {
+  DialogService,
+  OcButtonDirective,
+  OcCardComponent,
+  ToastService,
+} from '../ui';
+import {
+  MachineConfiguration,
+  MachineConfigurationDoc,
+} from '../models/configuration.model';
 
 @Component({
-  selector: 'configuration-overview',
+  selector: 'oc-configuration-overview',
+  standalone: true,
+  imports: [OcButtonDirective, OcCardComponent],
   templateUrl: './configuration-overview.component.html',
-  styleUrls: ['./configuration-overview.component.css'],
-  animations: [fadeOutAnimation]
+  styleUrl: './configuration-overview.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-
 export class ConfigurationOverviewComponent implements OnInit {
-    mappedData: ItemConfigurationModel[] = [];
-    submissionState = { success: false, error: false };
-    toastNotifyMessage = '';
-    showConfirmationDialog = false;
-    pendingDeletionMachineName: string | null = null;
+  private readonly configService = inject(ConfigService);
+  private readonly machineService = inject(MachineService);
+  private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
-    constructor(
-        private router: Router,
-        private configurationDataService: ConfigurationDataService,
-        private backendRequestService: BackendRequestService
-    ) {}
+  protected readonly configurations = signal<MachineConfiguration[]>([]);
+  protected readonly loaded = signal<boolean>(false);
 
-    ngOnInit(): void {
-        this.fetchAllConfigurations();
-    }
+  ngOnInit(): void {
+    this.refresh();
+  }
 
-    /**
-     * Fetch all configurations from the backend and map them to ItemConfigurationModel objects.
-     */
-    fetchAllConfigurations(): void {
-        this.backendRequestService.readAllConfig().subscribe(
-        response => {
-            this.mappedData = response.rows.map(row => this.configurationDataService.createItemConfiguration(row.doc));
+  private refresh(): void {
+    this.configService
+      .readAll()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.configurations.set(
+            response.rows.map((row) => this.docToConfiguration(row.doc)),
+          );
+          this.loaded.set(true);
         },
-        error => this.displayErrorMessage('Error fetching configurations', error)
-        );
+        error: (err) => {
+          this.loaded.set(true);
+          this.toast.error(
+            formatBackendError('Konfigurationen konnten nicht geladen werden', err),
+          );
+        },
+      });
+  }
+
+  private docToConfiguration(doc: MachineConfigurationDoc): MachineConfiguration {
+    return {
+      machineData: { ...doc.machineData },
+      mqttData: { ...doc.mqttData },
+      plcTagData: doc.plcTagData.map((tag) => ({ ...tag })),
+    };
+  }
+
+  protected onStart(machineName: string): void {
+    this.machineService
+      .start(machineName)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () =>
+          this.toast.success(
+            `Machine ${machineName} wird gestartet. Telegraf benötigt ca. 20 Sekunden.`,
+          ),
+        error: (err) =>
+          this.toast.error(
+            formatBackendError(`Start für Machine ${machineName} fehlgeschlagen`, err),
+          ),
+      });
+  }
+
+  protected onEdit(config: MachineConfiguration): void {
+    this.router.navigate(['/create-configuration'], {
+      queryParams: { machineName: config.machineData.machineName },
+    });
+  }
+
+  protected async onRemove(machineName: string): Promise<void> {
+    const ok = await this.dialog.confirm({
+      title: 'Konfiguration entfernen',
+      message: `Konfiguration für ${machineName} unwiderruflich entfernen?`,
+      confirmLabel: 'Entfernen',
+      cancelLabel: 'Abbrechen',
+      tone: 'danger',
+    });
+    if (!ok) {
+      return;
     }
-
-    /**
-     * Start the machine configuration.
-     */
-    onStartConfiguration(machineName: string): void {
-        this.backendRequestService.startMachineConfiguration(machineName).subscribe(
-            response => {
-                this.displaySuccessMessage(`Starting machine ${machineName} takes 20 seconds`);
-            },
-            error => this.displayErrorMessage(`Error starting machine ${machineName}, ${error}`)
-        );
-    }
-
-    /**
-     * Initiate the removal of a configuration after confirmation.
-     */
-    onRemoveConfigurationInitiate(machineName: string): void {
-        this.pendingDeletionMachineName = machineName;
-        this.showConfirmationDialog = true;
-    }
-
-    /**
-     * Confirm the deletion of a configuration.
-     */
-    confirmDeletion(): void {
-        if (this.pendingDeletionMachineName) {
-            this.backendRequestService.removeConfig(this.pendingDeletionMachineName).subscribe(
-                response => {
-                    this.mappedData = this.mappedData.filter(config => config.machineData.machineName !== this.pendingDeletionMachineName);
-                    this.displaySuccessMessage('Configuration removed successfully.');
-                    this.showConfirmationDialog = false;
-                    this.pendingDeletionMachineName = null;
-                },
-                error => this.displayErrorMessage('Error removing configuration', error)
-            );
-        }
-    }
-
-    /**
-     * Cancel the deletion process and close the dialog.
-     */
-    cancelDeletion(): void {
-        this.showConfirmationDialog = false;
-        this.pendingDeletionMachineName = null;
-        this.displayErrorMessage('Configuration removal aborted.');
-    }
-
-    /**
-     * Navigate to the create-configuration page.
-     */
-    onEditConfiguration(config: ItemConfigurationModel): void {
-        this.router.navigate(['/create-configuration'], { queryParams: { machineName: config.machineData.machineName } });
-    }
-
-    /**
-     * Display a success message.
-     */
-    private displaySuccessMessage(message: string): void {
-        this.submissionState = { success: true, error: false };
-        this.toastNotifyMessage = message;
-        setTimeout(() => (this.submissionState.success = false), 10000);
-    }
-
-    /**
-     * Display an error message.
-     */
-    private displayErrorMessage(defaultMessage: string, error?: HttpErrorResponse): void {
-        let errorMessage = defaultMessage;
-        if (error) {
-            errorMessage += ` Error: ${error.error?.error || error.message}`;
-        }
-        this.submissionState = { success: false, error: true };
-        this.toastNotifyMessage = errorMessage;
-        setTimeout(() => (this.submissionState.error = false), 6000);
-
-        if (error) {
-            console.error('Status Code:', error.status);
-            console.error('Error Message:', error.message);
-        }
-    }
-
+    this.configService
+      .remove(machineName)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.configurations.update((list) =>
+            list.filter((c) => c.machineData.machineName !== machineName),
+          );
+          this.toast.success(`Konfiguration für ${machineName} entfernt.`);
+        },
+        error: (err) =>
+          this.toast.error(
+            formatBackendError(
+              `Konfiguration für ${machineName} konnte nicht entfernt werden`,
+              err,
+            ),
+          ),
+      });
+  }
 }

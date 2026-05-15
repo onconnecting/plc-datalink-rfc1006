@@ -1,220 +1,256 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
-import { ItemConfigurationModel } from '../models/item-configuration.model';
-import { ConfigurationDataService } from '../services/configuration-data.service';
-import { BackendRequestService } from '../services/backend-request.service';
-import { HttpErrorResponse } from '@angular/common/http';
-import { trigger, state, style, transition, animate } from '@angular/animations';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  AbstractControl,
+  FormArray,
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-
-
-const fadeOutAnimation = trigger('fadeOut', [
-  state('active', style({ opacity: 1 })),
-  state('inactive', style({ opacity: 0 })),
-  transition('active => inactive', animate('3s'))
-]);
+import { ConfigService } from '../services/config.service';
+import { formatBackendError } from '../services/error-message';
+import {
+  OcButtonDirective,
+  OcCardComponent,
+  OcFieldComponent,
+  OcInputDirective,
+  ToastService,
+} from '../ui';
+import {
+  ipv4Validator,
+  plcAddressValidator,
+  portValidators,
+  rackValidators,
+  slotValidators,
+  pduSizeValidators,
+  requestIntervalValidators,
+  tagNameValidator,
+} from '../validators/plc-validators';
+import {
+  MachineConfiguration,
+  MachineConfigurationDoc,
+} from '../models/configuration.model';
 
 @Component({
-  selector: 'create-configuration',
+  selector: 'oc-create-configuration',
+  standalone: true,
+  imports: [
+    ReactiveFormsModule,
+    OcButtonDirective,
+    OcInputDirective,
+    OcCardComponent,
+    OcFieldComponent,
+  ],
   templateUrl: './create-configuration.component.html',
-  styleUrls: ['./create-configuration.component.css'],
-  animations: [fadeOutAnimation]
+  styleUrl: './create-configuration.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-
 export class CreateConfigurationComponent implements OnInit {
-    form: FormGroup;
-    submissionState = { success: false, error: false };
-    toastNotifyMessage = '';
-    isEditing: boolean = false; 
+  private readonly fb = inject(FormBuilder).nonNullable;
+  private readonly route = inject(ActivatedRoute);
+  private readonly configService = inject(ConfigService);
+  private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
-    constructor(
-      private fb: FormBuilder,
-      private route: ActivatedRoute,
-      private configurationDataService: ConfigurationDataService,
-      private backendRequestService: BackendRequestService
-    ) {}
+  protected readonly isEditing = signal<boolean>(false);
+  protected readonly submitting = signal<boolean>(false);
 
-    ngOnInit(): void {
-      this.initializeForm();
+  protected readonly form = this.fb.group({
+    machineData: this.fb.group({
+      machineName: ['', [Validators.required, Validators.pattern(/^[A-Za-z0-9_-]+$/)]],
+      plcIp: ['', [Validators.required, ipv4Validator]],
+      plcPort: [102, portValidators],
+      plcRack: [0, rackValidators],
+      plcSlot: [1, slotValidators],
+      pduSize: [10, pduSizeValidators],
+      requestInterval: [1, requestIntervalValidators],
+    }),
+    mqttData: this.fb.group({
+      mqttIp: ['', [Validators.required, ipv4Validator]],
+      mqttPort: [1883, portValidators],
+      mqttTopic: ['', [Validators.required]],
+    }),
+    plcTagData: this.fb.array([this.makeTag()]),
+  });
 
-      this.route.queryParams.subscribe(params => {
-        const machineName = params['machineName'];
+  ngOnInit(): void {
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const machineName = params.get('machineName');
         if (machineName) {
-          this.isEditing = true;
+          this.isEditing.set(true);
           this.loadConfiguration(machineName);
+          this.machineNameControl.disable({ emitEvent: false });
         } else {
-          this.isEditing = false;
+          this.isEditing.set(false);
+          this.machineNameControl.enable({ emitEvent: false });
         }
       });
-    }
+  }
 
-    /**
-     * Request configuration for defined machine.
-     */
-    private loadConfiguration(machineName: string): void {
-      this.backendRequestService.readOneConfig(machineName).subscribe(
-        response => {
-          this.form.patchValue(response);
-    
-          const tagsArray = this.plcTagData;
-          tagsArray.clear();
-          response.plcTagData.forEach((tag: any) => {
-            tagsArray.push(this.fb.group({
-              tagName: [tag.tagName, [Validators.required, Validators.pattern(/^[a-zA-Z0-9]+$/)]],
-              tagAddress: [tag.tagAddress, [Validators.required, Validators.pattern(/^DB\d+\.(X|B|C|W|DW|I|DI|R|DT|S)\d+(\.\d+)?$/)]]
-            }));
-          });
-        },
-        (error: HttpErrorResponse) => {
-          this.displayErrorMessage('An error occurred while loading the configuration.', error);
-        }
-      );
-    }
-
-    /**
-     * Initialize the main form and its nested form groups.
-     */
-    private initializeForm(): void {
-      this.form = this.fb.group({
-        machineData: this.fb.group({
-          machineName: ['', [Validators.required]],
-          plcIp: ['', [Validators.required, Validators.pattern(/^\d{1,3}(\.\d{1,3}){3}$/)]],
-          plcPort: ['', [Validators.required, Validators.min(1), Validators.max(65535)]],
-          plcRack: ['', [Validators.required, Validators.min(0), Validators.max(100)]],
-          plcSlot: ['', [Validators.required, Validators.min(0), Validators.max(18)]],
-          pduSize: ['', [Validators.required]],
-          requestInterval: ['', [Validators.required]]
-        }),
-        mqttData: this.fb.group({
-          mqttTopic: ['', [Validators.required]],
-          mqttIp: ['', [Validators.required, Validators.pattern(/^\d{1,3}(\.\d{1,3}){3}$/)]],
-          mqttPort: ['', [Validators.required, Validators.min(1), Validators.max(65535)]]
-        }),
-        plcTagData: this.fb.array([this.createPLCTag()])
+  private loadConfiguration(machineName: string): void {
+    this.configService
+      .readOne(machineName)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (doc) => this.patchFromDoc(doc),
+        error: (err) =>
+          this.toast.error(
+            formatBackendError(`Konfiguration für ${machineName} konnte nicht geladen werden`, err),
+          ),
       });
+  }
+
+  private patchFromDoc(doc: MachineConfigurationDoc): void {
+    this.form.patchValue({
+      machineData: doc.machineData,
+      mqttData: doc.mqttData,
+    });
+    this.plcTagsArray.clear();
+    for (const tag of doc.plcTagData) {
+      this.plcTagsArray.push(this.makeTag(tag.tagName, tag.tagAddress));
     }
-    
-    /**
-     * Create a PLC tag form group.
-     * @returns A FormGroup representing a PLC tag.
-     */
-    createPLCTag(): FormGroup {
-      return this.fb.group({
-        tagName: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9]+$/)]],
-        tagAddress: ['', [Validators.required, Validators.pattern(/^DB\d+\.(X|B|C|W|DW|I|DI|R|DT|S)\d+(\.\d+)?$/)]]
-      });
+  }
+
+  private makeTag(name = '', address = ''): FormGroup {
+    return this.fb.group({
+      tagName: [name, [Validators.required, tagNameValidator]],
+      tagAddress: [address, [Validators.required, plcAddressValidator]],
+    });
+  }
+
+  get plcTagsArray(): FormArray<FormGroup> {
+    return this.form.controls.plcTagData;
+  }
+
+  get machineNameControl(): AbstractControl {
+    return this.form.controls.machineData.controls.machineName;
+  }
+
+  protected addTag(): void {
+    this.plcTagsArray.push(this.makeTag());
+  }
+
+  protected removeTag(index: number): void {
+    if (this.plcTagsArray.length > 1) {
+      this.plcTagsArray.removeAt(index);
+    } else {
+      this.plcTagsArray.at(0).reset({ tagName: '', tagAddress: '' });
+    }
+  }
+
+  protected submit(): void {
+    this.form.markAllAsTouched();
+    if (this.form.invalid) {
+      this.toast.warning('Formular unvollständig. Pflichtfelder und Formate prüfen.');
+      return;
     }
 
-    /**
-     * Retrieve the PLC tag data form array.
-     * @returns The FormArray of PLC tags.
-     */
-    get plcTagData(): FormArray {
-      return this.form.get('plcTagData') as FormArray;
-    }
+    const value = this.form.getRawValue() as MachineConfiguration;
+    this.submitting.set(true);
 
-    /**
-     * Submit the form data to the backend, and update the current configuration state.
-     */
-    onSubmit(): void {
-      if (this.form.valid) {
-        const formData = this.form.value as ItemConfigurationModel;
-  
-        if (this.isEditing) {
-          this.backendRequestService.updateConfig(formData).subscribe(
-            response => {
-              this.displaySuccessMessage(`Configuration successfully updated for: ${response.id}`);
-            },
-            (error: HttpErrorResponse) => {
-              this.displayErrorMessage('An error occurred while updating the configuration.', error);
-            }
-          );
+    const request$ = this.isEditing()
+      ? this.configService.update(value)
+      : this.configService.create(value);
+
+    request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (response) => {
+        this.submitting.set(false);
+        if (this.isEditing()) {
+          this.toast.success(`Konfiguration für ${response.id} aktualisiert.`);
         } else {
-            const formData = this.form.value as ItemConfigurationModel;
-            this.configurationDataService.setConfiguration(formData);
-            const currentData = this.configurationDataService.getConfigurationAsJson();
-            this.backendRequestService.storeConfig(currentData).subscribe(
-              response => {
-                this.displaySuccessMessage(`Configuration successfully created for: ${response.id}`);
-              },
-              (error: HttpErrorResponse) => {
-                this.displayErrorMessage('An error occurred while creating the configuration.', error);
-              }
-            );
+          this.toast.success(`Konfiguration für ${response.id} angelegt.`);
         }
-      }
-    }
+      },
+      error: (err) => {
+        this.submitting.set(false);
+        const prefix = this.isEditing()
+          ? 'Konfiguration nicht aktualisiert'
+          : 'Konfiguration nicht angelegt';
+        this.toast.error(formatBackendError(prefix, err));
+      },
+    });
+  }
 
-    /**
-     * Add a new tag to the form array.
-     */
-    onAddTag(): void {
-      this.plcTagData.push(this.createPLCTag());
-    }
+  // --- Per-field error message helpers (CI tonality) ---
 
-    /**
-     * Remove a tag from the form array by index.
-     * @param index - The index of the tag to remove.
-     */
-    onRemoveTag(index: number): void {
-      this.plcTagData.removeAt(index);
+  protected machineDataError(name: keyof MachineConfiguration['machineData']): string | null {
+    const ctrl = this.form.controls.machineData.get(name as string);
+    if (!ctrl || !ctrl.touched || ctrl.valid) return null;
+    if (ctrl.hasError('required')) return this.requiredMessage(name as string);
+    if (ctrl.hasError('ipv4')) return 'Ungültiges IPv4-Format (z. B. 192.168.1.1).';
+    if (ctrl.hasError('min') || ctrl.hasError('max')) {
+      return this.numericRangeMessage(name as string);
     }
-
-    /**
-     * Display a success message and update the submission state.
-     * @param message - The success message to display.
-     */
-    private displaySuccessMessage(message: string): void {
-      this.submissionState = { success: true, error: false };
-      this.toastNotifyMessage = message;
-      setTimeout(() => (this.submissionState.success = false), 3000);
+    if (ctrl.hasError('pattern')) {
+      return 'Nur Buchstaben, Ziffern, _ und - erlaubt.';
     }
+    return 'Ungültiger Wert.';
+  }
 
-    /**
-     * Log and display an error message, and update the submission state.
-     * @param defaultMessage - The default error message.
-     * @param error - The HTTP error response object.
-     */
-    private displayErrorMessage(defaultMessage: string, error: HttpErrorResponse): void {
-      this.submissionState = { success: false, error: true };
-      this.toastNotifyMessage = error.error?.error || defaultMessage;
-      setTimeout(() => (this.submissionState.error = false), 6000);
-
-      console.error('Status Code:', error.status);
-      console.error('Error Message:', error.message);
+  protected mqttError(name: keyof MachineConfiguration['mqttData']): string | null {
+    const ctrl = this.form.controls.mqttData.get(name as string);
+    if (!ctrl || !ctrl.touched || ctrl.valid) return null;
+    if (ctrl.hasError('required')) return this.requiredMessage(name as string);
+    if (ctrl.hasError('ipv4')) return 'Ungültiges IPv4-Format (z. B. 192.168.1.1).';
+    if (ctrl.hasError('min') || ctrl.hasError('max')) {
+      return 'Port außerhalb des gültigen Bereichs 1–65535.';
     }
+    return 'Ungültiger Wert.';
+  }
 
-    /**
-     * Initialize the main form and its nested form groups.
-     */
-    private debugInitializeForm(): void {
-      this.form = this.fb.group({
-        machineData: this.fb.group({
-          machineName: ['devBoard', [Validators.required]],
-          plcIp: ['192.168.4.100', [Validators.required, Validators.pattern(/^\d{1,3}(\.\d{1,3}){3}$/)]],
-          plcPort: [102, [Validators.required, Validators.min(1), Validators.max(65535)]],
-          plcRack: [0, [Validators.required, Validators.min(0), Validators.max(100)]],
-          plcSlot: [1, [Validators.required, Validators.min(0), Validators.max(18)]],
-          pduSize: [10, [Validators.required]],
-          requestInterval: [1, [Validators.required]]
-        }),
-        mqttData: this.fb.group({
-          mqttTopic: ['on/ot/devboard', [Validators.required]],
-          mqttIp: ['192.168.4.172', [Validators.required, Validators.pattern(/^\d{1,3}(\.\d{1,3}){3}$/)]],
-          mqttPort: [1883, [Validators.required, Validators.min(1), Validators.max(65535)]]
-        }),
-        plcTagData: this.fb.array([this.createPLCTag()])
-      });
-    }
+  protected tagNameError(index: number): string | null {
+    const ctrl = this.plcTagsArray.at(index).get('tagName');
+    if (!ctrl || !ctrl.touched || ctrl.valid) return null;
+    if (ctrl.hasError('required')) return 'Tag-Name erforderlich.';
+    if (ctrl.hasError('tagName')) return 'Nur Buchstaben und Ziffern erlaubt (z. B. lightBarrier).';
+    return 'Ungültiger Wert.';
+  }
 
-    /**
-     * Create a PLC tag form group.
-     * @returns A FormGroup representing a PLC tag.
-     */
-    debugCreatePLCTag(): FormGroup {
-      return this.fb.group({
-        tagName: ['lightBarrier', [Validators.required, Validators.pattern(/^[a-zA-Z0-9]+$/)]],
-        tagAddress: ['DB9.X1732.1', [Validators.required, Validators.pattern(/^DB\d+\.(X|B|C|W|DW|I|DI|R|DT|S)\d+(\.\d+)?$/)]]
-      });
+  protected tagAddressError(index: number): string | null {
+    const ctrl = this.plcTagsArray.at(index).get('tagAddress');
+    if (!ctrl || !ctrl.touched || ctrl.valid) return null;
+    if (ctrl.hasError('required')) return 'Tag-Adresse erforderlich.';
+    if (ctrl.hasError('plcAddress')) {
+      return 'Ungültiges PLC-Adressformat (z. B. DB9.X1732.1 oder DB47.S30.13).';
     }
+    return 'Ungültiger Wert.';
+  }
+
+  private requiredMessage(field: string): string {
+    switch (field) {
+      case 'machineName': return 'Machine-Name erforderlich.';
+      case 'plcIp': return 'PLC IP erforderlich.';
+      case 'plcPort': return 'PLC Port erforderlich.';
+      case 'plcRack': return 'Rack erforderlich.';
+      case 'plcSlot': return 'Slot erforderlich.';
+      case 'pduSize': return 'Batch-Größe erforderlich.';
+      case 'requestInterval': return 'Intervall erforderlich.';
+      case 'mqttIp': return 'MQTT IP erforderlich.';
+      case 'mqttPort': return 'MQTT Port erforderlich.';
+      case 'mqttTopic': return 'MQTT Topic erforderlich.';
+      default: return 'Pflichtfeld.';
+    }
+  }
+
+  private numericRangeMessage(field: string): string {
+    switch (field) {
+      case 'plcPort': return 'PLC Port außerhalb 1–65535.';
+      case 'plcRack': return 'PLC Rack außerhalb 0–100.';
+      case 'plcSlot': return 'PLC Slot außerhalb 0–18.';
+      case 'pduSize': return 'Batch-Größe muss ≥ 1 sein.';
+      case 'requestInterval': return 'Intervall muss ≥ 1 Sekunde sein.';
+      default: return 'Wert außerhalb des gültigen Bereichs.';
+    }
+  }
 }

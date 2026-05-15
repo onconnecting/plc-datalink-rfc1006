@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- onconnecting Wortmarke
+     Stand: 2026-05-14
+     Farbe: #0F172A (Slate 900 (Neutralpalette))
+     Schrift: Consolas (Fallback: Cascadia Mono, DejaVu Sans Mono)
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1388 300"
+     width="1388" height="300"
+     role="img" aria-label="onconnecting">
+  <title>onconnecting</title>
+  <text x="80" y="220"
+        font-family="Consolas, 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', monospace"
+        font-size="170"
+        font-weight="400"
+        fill="#0F172A">onconnecting</text>
+</svg>

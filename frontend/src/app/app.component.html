@@ -1,6 +1,5 @@
-<app-header (featureSelected)="onNavigate($event)"></app-header>
-<router-outlet></router-outlet>
-
-
-
-
+<oc-header />
+<main class="oc-shell">
+  <router-outlet />
+</main>
+<oc-toast-host />

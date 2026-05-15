@@ -1,64 +1,77 @@
-<div class="form-container-base">
-  <h2>Configuration Overview</h2>
-  <div style="border-bottom: 4px solid rgb(35, 142, 168); margin: 20px 0;"></div>
+<section class="oc-page">
+  <h1 class="oc-page__title">Configuration Overview</h1>
+  <p class="oc-page__lead">
+    Persistierte Machine-Konfigurationen aus CouchDB. Edit lädt das Formular vorbefüllt, Remove
+    entfernt das Dokument, Start hebt die Machine in den aktiven Zustand.
+  </p>
 
+  @if (loaded() && configurations().length === 0) {
+    <oc-card>
+      <p class="oc-page__empty">
+        Keine Konfiguration vorhanden. Lege eine neue unter „Create Configuration" an.
+      </p>
+    </oc-card>
+  }
 
-  <div *ngFor="let config of mappedData; let i = index" class="form-container">
-    <!-- <div class="machine-card"> -->
-      <div class="machine-content">
-        <div class="machine-info">
-          <h3 class="config-header">Configuration {{ i + 1 }}: {{ config.machineData.machineName }}</h3>
-          <div class="config-item machine-card">
-            <p><strong>Machine Name:</strong> {{ config.machineData.machineName }}</p>
-            <p><strong>Request Batch Size:</strong> {{ config.machineData.pduSize }}</p>
-            <p><strong>Request Interval in Seconds:</strong> {{ config.machineData.requestInterval }}</p>
-            <p><strong>PLC IP Address:</strong> {{ config.machineData.plcIp }}</p>
-            <p><strong>PLC Port:</strong> {{ config.machineData.plcPort }}</p>
-            <p><strong>PLC Rack:</strong> {{ config.machineData.plcRack }}</p>
-            <p><strong>PLC Slot:</strong> {{ config.machineData.plcSlot }}</p>
-            <hr>
-            <p><strong>MQTT IP Address:</strong> {{ config.mqttData.mqttIp }}</p>
-            <p><strong>MQTT Port:</strong> {{ config.mqttData.mqttPort }}</p>
-            <p><strong>MQTT Topic:</strong> {{ config.mqttData.mqttTopic }}</p>
-            <hr>
-            <div *ngIf="config.plcTagData.length">
-              <strong>PLC Tags:</strong>
-              <ul>
-                <li *ngFor="let tag of config.plcTagData">
-                  <strong>Tag Name:</strong> {{ tag.tagName }}, <strong>Tag Address:</strong> {{ tag.tagAddress }}
-                </li>
-              </ul>
-            </div>
-          </div>
+  @for (config of configurations(); track config.machineData.machineName; let i = $index) {
+    <oc-card>
+      <header class="oc-config__head">
+        <h2 class="oc-config__title">
+          <span class="oc-config__index">#{{ i + 1 }}</span>
+          {{ config.machineData.machineName }}
+        </h2>
+        <div class="oc-config__actions">
+          <button type="button" ocButton variant="secondary" (click)="onStart(config.machineData.machineName)">
+            Start
+          </button>
+          <button type="button" ocButton variant="secondary" (click)="onEdit(config)">
+            Edit
+          </button>
+          <button type="button" ocButton variant="danger" (click)="onRemove(config.machineData.machineName)">
+            Remove
+          </button>
         </div>
-        <div class="machine-buttons">
-          <button class="btn btn-danger" type="button" (click)="onRemoveConfigurationInitiate(config.machineData.machineName)">Remove</button>
-          <button class="btn btn-warning" type="button" (click)="onEditConfiguration(config)">Edit</button>
-          <button class="btn btn-success" type="button" (click)="onStartConfiguration(config.machineData.machineName)">Start</button>
+      </header>
+
+      <div class="oc-config__grid">
+        <div class="oc-config__group">
+          <h3 class="oc-config__group-title">Machine Data</h3>
+          <dl class="oc-config__kv">
+            <dt>PLC IP</dt><dd class="oc-config__value">{{ config.machineData.plcIp }}</dd>
+            <dt>Port</dt><dd class="oc-config__value">{{ config.machineData.plcPort }}</dd>
+            <dt>Rack</dt><dd class="oc-config__value">{{ config.machineData.plcRack }}</dd>
+            <dt>Slot</dt><dd class="oc-config__value">{{ config.machineData.plcSlot }}</dd>
+            <dt>Batch</dt><dd class="oc-config__value">{{ config.machineData.pduSize }}</dd>
+            <dt>Intervall</dt><dd class="oc-config__value">{{ config.machineData.requestInterval }} s</dd>
+          </dl>
+        </div>
+
+        <div class="oc-config__group">
+          <h3 class="oc-config__group-title">MQTT</h3>
+          <dl class="oc-config__kv">
+            <dt>Broker</dt>
+            <dd class="oc-config__value">{{ config.mqttData.mqttIp }}:{{ config.mqttData.mqttPort }}</dd>
+            <dt>Topic</dt>
+            <dd class="oc-config__value">{{ config.mqttData.mqttTopic }}</dd>
+          </dl>
+        </div>
+
+        <div class="oc-config__group oc-config__group--tags">
+          <h3 class="oc-config__group-title">PLC Tags ({{ config.plcTagData.length }})</h3>
+          @if (config.plcTagData.length === 0) {
+            <p class="oc-config__empty">Keine Tags definiert.</p>
+          } @else {
+            <ul class="oc-config__tags">
+              @for (tag of config.plcTagData; track tag.tagAddress + ':' + tag.tagName) {
+                <li>
+                  <span class="oc-config__value">{{ tag.tagAddress }}</span>
+                  <span class="oc-config__tag-name">{{ tag.tagName }}</span>
+                </li>
+              }
+            </ul>
+          }
         </div>
       </div>
-    <!-- </div> -->
-  </div>
-</div>
-
-<!-- Confirmation Dialog placed in main component template -->
-<confirmation-dialog 
-  *ngIf="showConfirmationDialog"
-  class="custom-modal" 
-  [title]="'Confirmation'"
-  [message]="'Remove this configuration: ' + pendingDeletionMachineName + '?'"
-  (onDecline)="cancelDeletion()"
-  (onConfirm)="confirmDeletion()">
-</confirmation-dialog>
-
-<!-- Toast Notification -->
-<div class="toast-notification success" *ngIf="submissionState.success" [@fadeOut]="submissionState.success ? 'active' : 'inactive'">
-  <span class="toast-icon">✓</span>
-  <div class="toast-message">{{ toastNotifyMessage }}</div>
-</div>
-
-<!-- Error Toast Notification -->
-<div class="toast-notification error" *ngIf="submissionState.error" [@fadeOut]="submissionState.error ? 'active' : 'inactive'">
-  <span class="toast-icon">⚠️</span> 
-  <div class="toast-message">{{ toastNotifyMessage }}</div>
-</div>
+    </oc-card>
+  }
+</section>

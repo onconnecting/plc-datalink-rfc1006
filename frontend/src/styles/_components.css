@@ -1,0 +1,157 @@
+/* Global component classes applied by oc-* directives and component hosts.
+ *
+ * These rules cover primitives that are toggled via @HostBinding from
+ * directives (OcButtonDirective, OcInputDirective) and need to be loaded
+ * globally because the directives target native elements.
+ *
+ * CDK Dialog backdrop/panel classes are also global because CDK applies
+ * them directly to its overlay host.
+ */
+
+/* === Button === */
+.oc-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-headline);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  user-select: none;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.oc-button:disabled,
+.oc-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.oc-button--compact {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.oc-button--primary {
+  background: var(--color-accent-500);
+  color: var(--color-surface);
+  border-color: var(--color-accent-500);
+}
+.oc-button--primary:hover:not(:disabled) {
+  background: var(--color-accent-600);
+  border-color: var(--color-accent-600);
+}
+
+.oc-button--secondary {
+  background: var(--color-surface);
+  color: var(--color-neutral-800);
+  border-color: var(--color-neutral-300);
+}
+.oc-button--secondary:hover:not(:disabled) {
+  border-color: var(--color-neutral-500);
+  color: var(--color-neutral-900);
+}
+
+.oc-button--danger {
+  background: var(--color-surface);
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+.oc-button--danger:hover:not(:disabled) {
+  background: var(--color-error);
+  color: var(--color-surface);
+}
+
+.oc-button--ghost {
+  background: transparent;
+  color: var(--color-neutral-700);
+  border-color: transparent;
+}
+.oc-button--ghost:hover:not(:disabled) {
+  color: var(--color-accent-600);
+}
+
+/* === Input / Select / Textarea === */
+.oc-input {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-snug);
+  color: var(--color-neutral-900);
+  background: var(--color-surface);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  transition: border-color 120ms ease;
+}
+
+.oc-input:hover { border-color: var(--color-neutral-400); }
+.oc-input:focus { border-color: var(--color-accent-500); outline: none; }
+
+/* Native form controls used for technical fields render mono. */
+.oc-input[type="number"],
+.oc-input[inputmode="numeric"] {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+}
+
+/* === Table === */
+.oc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+}
+
+.oc-table__head {
+  background: var(--color-neutral-800);
+  color: var(--color-surface);
+  font-family: var(--font-headline);
+  font-size: var(--font-size-xs);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+
+.oc-table__head th {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-weight: 400;
+  border-bottom: 1px solid var(--color-neutral-900);
+}
+
+.oc-table__body td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-100);
+  vertical-align: top;
+  color: var(--color-neutral-800);
+}
+
+.oc-table__body tr:hover {
+  background: var(--color-accent-50);
+}
+
+.oc-table__cell--mono {
+  font-family: var(--font-mono);
+}
+
+.oc-table__cell--actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* === CDK Dialog overlay classes (must be global). === */
+.oc-dialog__backdrop {
+  background: rgb(15 23 42 / 50%);
+}
+
+.oc-dialog__panel > * {
+  border-radius: var(--radius-lg);
+}

@@ -1,37 +1,27 @@
-# Stage 1: Build the Angular application
-FROM node:20 as build-stage
+# Stage 1: Build the Angular 19 application.
+FROM node:22-alpine AS build-stage
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json /app/
+# Install dependencies first to take advantage of layer caching.
+COPY package.json package-lock.json* /app/
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
-# Copy the entire Angular project's source code into the working directory
+# Copy the rest of the project and produce a production bundle.
 COPY . /app/
-
-# Install the npm dependencies
-RUN npm install
-
-# Build the Angular application
 RUN npm run build -- --output-path=/app/dist/plc-datalink-rfc1006-frontend
 
-# Stage 2: Serve the Angular app using Nginx
+# Stage 2: Serve the bundle via nginx Alpine.
 FROM nginx:stable-alpine
 
-# Remove default configurations
-RUN rm /etc/nginx/conf.d/default.conf
-RUN rm /etc/nginx/nginx.conf
+RUN rm /etc/nginx/conf.d/default.conf /etc/nginx/nginx.conf
 
-# Copy custom Nginx configurations
 COPY config/nginx-custom.conf /etc/nginx/conf.d/default.conf
-COPY config/nginx-main.conf /etc/nginx/nginx.conf
+COPY config/nginx-main.conf  /etc/nginx/nginx.conf
 
-# Copy the Angular application files from the build stage
+# Angular @angular/build (esbuild) emits SPA assets under dist/<name>/browser.
 COPY --from=build-stage /app/dist/plc-datalink-rfc1006-frontend /usr/share/nginx/html
 
-# Expose the port Nginx is reachable on
 EXPOSE 80
 
-# Start Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]

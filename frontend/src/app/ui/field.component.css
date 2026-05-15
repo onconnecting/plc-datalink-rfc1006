@@ -1,0 +1,39 @@
+.oc-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.oc-field__label {
+  font-family: var(--font-headline);
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-800);
+  letter-spacing: 0.01em;
+}
+
+.oc-field__control--mono ::ng-deep input,
+.oc-field__control--mono ::ng-deep select,
+.oc-field__control--mono ::ng-deep textarea {
+  font-family: var(--font-mono);
+}
+
+.oc-field__help {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+.oc-field__error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+}
+
+.oc-field--invalid ::ng-deep input,
+.oc-field--invalid ::ng-deep select,
+.oc-field--invalid ::ng-deep textarea {
+  border-color: var(--color-error);
+}

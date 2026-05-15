@@ -1,0 +1,50 @@
+{
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "selector-class-pattern": [
+      "^oc-?[a-z0-9]+(?:[_-]{1,2}[a-z0-9]+)*$",
+      {
+        "message": "Class names must follow the oc-block__element--modifier pattern (kebab-case BEM-lite)."
+      }
+    ],
+    "color-no-hex": true,
+    "color-named": "never",
+    "color-function-notation": "modern",
+    "no-descending-specificity": null,
+    "custom-property-pattern": [
+      "^(color|font|space|radius|layout|line-height)-[a-z0-9-]+$",
+      {
+        "message": "Custom property names must use one of the documented token prefixes (color-/font-/space-/radius-/layout-/line-height-)."
+      }
+    ],
+    "declaration-block-single-line-max-declarations": null,
+    "rule-empty-line-before": null,
+    "custom-property-empty-line-before": null,
+    "value-keyword-case": null,
+    "import-notation": null,
+    "color-hex-length": null,
+    "selector-pseudo-element-no-unknown": [true, { "ignorePseudoElements": ["ng-deep"] }]
+  },
+  "overrides": [
+    {
+      "files": ["src/styles/_tokens.css"],
+      "rules": {
+        "color-no-hex": null,
+        "color-named": null,
+        "selector-class-pattern": null
+      }
+    },
+    {
+      "files": ["src/styles.css"],
+      "rules": {
+        "selector-class-pattern": null
+      }
+    },
+    {
+      "files": ["src/styles/_components.css"],
+      "rules": {
+        "alpha-value-notation": null
+      }
+    }
+  ]
+}

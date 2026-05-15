@@ -1,0 +1,21 @@
+<div class="oc-toast-host" aria-live="polite" aria-atomic="false">
+  @for (t of toasts(); track t.id) {
+    <article
+      class="oc-toast"
+      [class.oc-toast--success]="t.tone === 'success'"
+      [class.oc-toast--warning]="t.tone === 'warning'"
+      [class.oc-toast--error]="t.tone === 'error'"
+      [class.oc-toast--info]="t.tone === 'info'"
+    >
+      <p class="oc-toast__message">{{ t.message }}</p>
+      <button
+        type="button"
+        class="oc-toast__close"
+        (click)="dismiss(t)"
+        aria-label="Schließen"
+      >
+        ×
+      </button>
+    </article>
+  }
+</div>

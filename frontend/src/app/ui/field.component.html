@@ -1,0 +1,12 @@
+<div class="oc-field" [class.oc-field--invalid]="!!error">
+  <label class="oc-field__label" [for]="inputId">{{ label }}</label>
+  <div class="oc-field__control" [class.oc-field__control--mono]="mono">
+    <ng-content />
+  </div>
+  @if (help && !error) {
+    <p class="oc-field__help">{{ help }}</p>
+  }
+  @if (error) {
+    <p class="oc-field__error" role="alert">{{ error }}</p>
+  }
+</div>

@@ -1,22 +1,14 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { HeaderComponent } from './header/header.component';
+import { OcToastHostComponent } from './ui';
 
 @Component({
-  selector: 'app-root',
+  selector: 'oc-root',
+  standalone: true,
+  imports: [RouterOutlet, HeaderComponent, OcToastHostComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
+  styleUrl: './app.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AppComponent {
-  title = 'plc-datalink-rfc1006';
-
-  loadedPlcConfiguration='plc-configuration';
-  loadedPlcState='plc-state'
-  loadedConfigurationOverview='configuration-overview'
-  loadedCreateConfiguration='create-configuration'
-
-  onNavigate(feature:string){
-    this.loadedPlcConfiguration=feature;
-    this.loadedPlcState=feature;
-    this.loadedConfigurationOverview=feature;
-    this.loadedCreateConfiguration=feature;
-  }
-}
+export class AppComponent {}
