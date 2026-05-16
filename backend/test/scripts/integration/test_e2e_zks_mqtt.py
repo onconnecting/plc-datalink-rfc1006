@@ -1,38 +1,50 @@
-"""End-to-end: REST → CouchDB → Telegraf → ZKS S7 mock → MQTT.
+"""End-to-end: REST → CouchDB → Telegraf → ZKS S7 mock → MQTT
+                                              ⤴ snap7 drives state machine
 
-This is the only test that exercises every layer of the system at once.
-Required infrastructure (must all be reachable from the runner container):
+This is the only test that exercises every layer of the production stack
+at once. Required infrastructure (must all be reachable from the runner
+container, see ./conftest.py for the reachability gates):
 
-  - The ZKS machine mock on the host (port 102 by default).
-  - A live `backend-e2e` from dc-plc-datalink-rfc1006-e2e.yml — Flask +
-    supervisord + Telegraf all in the production image.
-  - The `couchdb-e2e` and `mosquitto-e2e` siblings on the same compose
-    network.
+  - The ZKS machine mock on the host (192.168.0.180:102 by default).
+  - `backend-e2e` from dc-plc-datalink-rfc1006-e2e.yml — Flask + supervisord
+    + Telegraf, all in the production image.
+  - `couchdb-e2e` and `mosquitto-e2e` siblings on the same compose network.
 
-Each fixture probes its dependency at the start of the session and skips
-cleanly when any piece is missing; this test does not run by accident on
-a workstation that lacks the stack.
+Verified flow (per docs/features/test-strategy/scope.md, Section 4):
 
-What the test verifies:
+  1. REST smoke — POST /config/create + GET /config/read/one. Proves the
+     Flask + CouchDB layer is up and round-trips the ZKS-targeted config.
+  2. Subscribe to MQTT *before* starting Telegraf so we never miss the
+     first publish.
+  3. GET /machine/start — supervisord launches a per-machine Telegraf
+     process that polls the ZKS mock via S7/RFC1006.
+  4. Poll /machine/online until the machine appears (Telegraf has come up).
+  5. Wait for the first MQTT message — proves the production chain
+     Backend → Telegraf → ZKS → MQTT is alive.
+  6. snap7 drives the ZKS state machine directly and reads ground-truth
+     KPI snapshots from DB1:
+       a. Read initial DB1 snapshot (Machine.State + 8 KPIs) — diagnostic
+          baseline; not asserted against.
+       b. Pulse Cmd_Stop (DB4 bit 68.2), wait ~3 s for the flank, snapshot.
+       c. Write Cmd_CycleSpeedFactor = 5.0 (REAL @ DB4 92), pulse Cmd_Start
+          (bit 68.1).
+       d. Sleep 30 s of accelerated production (~9 part cycles at 5×).
+       e. Snapshot DB1 a third time.
+       f. Assert Machine.State changed AND at least one KPI moved between
+          "stopped" and "running" snapshots.
+  7. Confirm the MQTT stream stayed alive during the 30-s run.
+  8. Cleanup: pulse Cmd_Stop, GET /machine/stop, GET /config/remove. Mock
+     ends in IDLE, CouchDB clean.
 
-  1. POST /config/create stores the ZKS-targeted machine config in CouchDB.
-  2. GET /config/read/one returns it back unchanged.
-  3. GET /machine/start kicks off a per-machine Telegraf process under
-     supervisord; GET /machine/online eventually lists it.
-  4. Telegraf reads PLC tags from the ZKS S7 server and publishes JSON to
-     Mosquitto. The first message's payload matches the documented shape
-     (`name`, `tags.host`, `tags.machine`, `fields`, `timestamp` in ms).
-  5. Writing `Cmd_InjectFault = "ERR_WELD_CURRENT_LOW"` to DB4 via
-     python-snap7 takes effect — we verify the write call itself and that
-     MQTT data keeps flowing afterwards (the mock continues to emit weld
-     telemetry; the fault changes which point goes NOK, not whether data
-     is produced).
-  6. Cleanup: /machine/stop and /config/remove leave the stack idle.
+Total happy-path budget is ≤ 60 s — the 30-s production wait dominates;
+all other timeouts are tightly set so a regression manifests as a failure,
+not a hang.
 
-The test is one function on purpose — the whole point is to walk the
-pipeline once with the same machine config. Splitting into N steps would
-either rebuild the stack each time (slow) or share session state across
-tests (fragile).
+snap7 is used here as a *test instrument* (drive + ground-truth read),
+not as a stand-in for Telegraf. Steps 3–5 are the actual production-path
+verification; steps 6–7 use snap7 to (a) make the ZKS produce parts on
+schedule and (b) read DB values without going through Telegraf's flush
+window, so KPI assertions are deterministic.
 """
 from __future__ import annotations
 
@@ -49,10 +61,19 @@ from .zks_fixtures import zks_machine_config
 
 MACHINE_NAME = 'zks-mock'
 
-# How long the test waits for state transitions. These are upper bounds —
-# in a happy run the stack is online within 30 s of /machine/start.
-TIMEOUT_MACHINE_ONLINE = 180
-TIMEOUT_FIRST_MQTT = 180
+# Tight timeouts — total test budget ≤ 60 s, dominated by PRODUCTION_WAIT.
+TIMEOUT_HTTP = 15
+TIMEOUT_MACHINE_ONLINE = 10
+# ZKS state transitions are not instantaneous — Node-RED processes the
+# Cmd_Stop flank within ~200 ms but the State field updates after the
+# current operation completes. Poll DB1.State until it leaves RUNNING (1).
+STOP_POLL_TIMEOUT = 10
+PRODUCTION_WAIT = 25
+# We don't gate on "first MQTT message" anymore — Telegraf needs ~10-15 s
+# from spawn to first publish (S7 + MQTT connect overhead), and waiting
+# separately doubles the test budget. Instead we assert at the end of
+# PRODUCTION_WAIT that at least one message arrived — Telegraf has had
+# the entire 30 s production window to flush.
 
 
 # ─── helpers ───────────────────────────────────────────────────────────
@@ -60,41 +81,31 @@ TIMEOUT_FIRST_MQTT = 180
 
 def _post_config(backend_url: str, config_dict: dict) -> requests.Response:
     """/config/create expects a JSON body whose value is itself a JSON-encoded
-    string — see routes.store_config (`json.loads(request.get_json())`) and
-    the matching frontend code in services/config.service.ts.
+    string — see routes.store_config (`json.loads(request.get_json())`).
     """
     body = json.dumps(json.dumps(config_dict))
     return requests.post(
         f'{backend_url}/config/create',
         data=body,
         headers={'Content-Type': 'application/json'},
-        timeout=15,
+        timeout=TIMEOUT_HTTP,
     )
 
 
 def _force_cleanup(backend_url: str) -> None:
-    """Best-effort cleanup. Used both proactively (before the test, in case
-    a previous run left state) and reactively (after the test, regardless
-    of outcome). 404 / 409 here are expected, never raised."""
-    try:
-        requests.get(
-            f'{backend_url}/machine/stop',
-            params={'machine_name': MACHINE_NAME},
-            timeout=10,
-        )
-    except requests.exceptions.RequestException:
-        pass
-    # /machine/stop is asynchronous on the supervisord side; give it a
-    # beat before /config/remove (which 409s while the machine is active).
-    time.sleep(2)
-    try:
-        requests.get(
-            f'{backend_url}/config/remove',
-            params={'machine_name': MACHINE_NAME},
-            timeout=10,
-        )
-    except requests.exceptions.RequestException:
-        pass
+    """Best-effort cleanup. Runs before AND after the test, so a previous
+    failed run cannot leave residual state. 404 / 409 are expected here."""
+    for endpoint, params in (
+        ('/machine/stop', {'machine_name': MACHINE_NAME}),
+        ('/config/remove', {'machine_name': MACHINE_NAME}),
+    ):
+        try:
+            requests.get(f'{backend_url}{endpoint}', params=params, timeout=TIMEOUT_HTTP)
+        except requests.exceptions.RequestException:
+            pass
+    # /machine/stop is asynchronous in supervisord; give it a beat before
+    # /config/remove (which 409s while the Telegraf process is still alive).
+    time.sleep(1)
 
 
 @pytest.fixture
@@ -107,27 +118,39 @@ def cleanup_machine(backend_url):
 # ─── the test ──────────────────────────────────────────────────────────
 
 
-def test_zks_pipeline_publishes_to_mqtt(
+def test_zks_state_and_kpi_change(
     backend_url, mqtt_endpoint, zks_endpoint, cleanup_machine
 ):
     """The single E2E walk-through. See module docstring for the contract."""
-    import paho.mqtt.client as mqtt_lib  # local — keeps unit-tests cold-import light
+    import paho.mqtt.client as mqtt_lib  # local — keeps unit imports cold
     import snap7  # type: ignore
-    from snap7.util import set_string  # type: ignore
+    from snap7.util import get_dint, get_int, get_real, set_bool, set_real  # type: ignore
 
+    s7_host, s7_port = zks_endpoint
     mqtt_host, mqtt_port = mqtt_endpoint
+
+    # python-snap7 v2 dropped the `tcpport=` kwarg from connect(); the
+    # underlying snap7 C library defaults to 102. For non-default ports
+    # we'd need set_param(RemotePort, …) — guard explicitly so a
+    # ZKS_S7_PORT=1102 setting fails loudly rather than silently dialing 102.
+    assert s7_port == 102, (
+        f'snap7 v2 connect() only honours the default port 102; '
+        f'ZKS_S7_PORT={s7_port} would be silently ignored. '
+        f'Run the ZKS mock on 102 or extend this fixture to call '
+        f'client.set_param(RemotePort, port) before connect.'
+    )
+
     config = zks_machine_config(MACHINE_NAME)
     topic_root = config['mqttData']['mqttTopic']
 
-    # ── 1) POST /config/create ────────────────────────────────────────
+    # ── 1) REST smoke: POST /config/create + GET /config/read/one ─────
     r = _post_config(backend_url, config)
     assert r.status_code == 200, f'/config/create failed: {r.status_code} {r.text}'
 
-    # ── 2) GET /config/read/one — verify round-trip ───────────────────
     r = requests.get(
         f'{backend_url}/config/read/one',
         params={'machine_name': MACHINE_NAME},
-        timeout=10,
+        timeout=TIMEOUT_HTTP,
     )
     assert r.status_code == 200, r.text
     fetched = r.json()
@@ -136,7 +159,7 @@ def test_zks_pipeline_publishes_to_mqtt(
     assert fetched['machineData']['plcPort'] == config['machineData']['plcPort']
     assert len(fetched['plcTagData']) == len(config['plcTagData'])
 
-    # ── 3) Subscribe BEFORE /machine/start so we don't miss the first message
+    # ── 2) Subscribe BEFORE starting Telegraf so we don't miss messages
     received: Queue = Queue()
     subscribed = threading.Event()
 
@@ -146,14 +169,18 @@ def test_zks_pipeline_publishes_to_mqtt(
         client = mqtt_lib.Client(client_id='e2e-runner')
 
     def on_connect(c, *_a, **_kw):
-        c.subscribe(f'{topic_root}/#')
-        c.subscribe(topic_root)
+        # Subscribe to '#' (catch-all) — narrower filters that look
+        # correct on paper (`on/ot/zks-mock` + `on/ot/zks-mock/#`) didn't
+        # deliver messages reliably with paho-mqtt v2 + loop_start(),
+        # while a single `#` matches the broker's routing path used by
+        # mosquitto_sub and paho's loop_forever().
+        c.subscribe('#', qos=0)
         subscribed.set()
 
     def on_message(_c, _u, msg):
         try:
             received.put((msg.topic, json.loads(msg.payload)))
-        except Exception as exc:  # malformed payload still goes into the queue
+        except Exception as exc:
             received.put((msg.topic, {'__decode_error': str(exc), '__raw': msg.payload}))
 
     client.on_connect = on_connect
@@ -163,15 +190,15 @@ def test_zks_pipeline_publishes_to_mqtt(
     assert subscribed.wait(timeout=10), 'MQTT subscriber did not connect to broker'
 
     try:
-        # ── 4) GET /machine/start ─────────────────────────────────────
+        # ── 3) GET /machine/start — supervisord launches Telegraf ─────
         r = requests.get(
             f'{backend_url}/machine/start',
             params={'machine_name': MACHINE_NAME},
-            timeout=30,
+            timeout=TIMEOUT_HTTP,
         )
         assert r.status_code == 200, f'/machine/start failed: {r.status_code} {r.text}'
 
-        # ── 5) Poll /machine/online until Telegraf is listed ──────────
+        # ── 4) Poll /machine/online until Telegraf is listed ──────────
         online_deadline = time.time() + TIMEOUT_MACHINE_ONLINE
         while time.time() < online_deadline:
             r = requests.get(f'{backend_url}/machine/online', timeout=5)
@@ -179,16 +206,118 @@ def test_zks_pipeline_publishes_to_mqtt(
                 names = [m['machine_name'] for m in r.json().get('machines', [])]
                 if MACHINE_NAME in names:
                     break
-            time.sleep(3)
+            time.sleep(1)
         else:
             pytest.fail(
                 f'{MACHINE_NAME} never appeared in /machine/online within '
                 f'{TIMEOUT_MACHINE_ONLINE} s'
             )
 
-        # ── 6) Wait for first MQTT message + assert payload shape ─────
-        first = received.get(timeout=TIMEOUT_FIRST_MQTT)
-        topic, payload = first
+        # MQTT-shape validation deferred to the end of the production
+        # window — Telegraf has been spawning concurrently; we don't
+        # block here. See step 7 below.
+
+        # ── 5) snap7 helpers — one connection per S7 call (mock auto-
+        # resets trigger bits after ~200 ms, so we don't hold connections).
+        def read_db1_snapshot() -> dict:
+            s = snap7.client.Client()
+            s.connect(s7_host, 0, 1)
+            try:
+                buf = s.db_read(1, 0, 36)
+            finally:
+                s.disconnect()
+            return {
+                'state':          get_int(buf, 0),
+                'mode':           get_int(buf, 2),
+                'part_counter':   get_dint(buf, 4),
+                'ok_counter':     get_dint(buf, 8),
+                'nok_counter':    get_dint(buf, 12),
+                'scrap_counter':  get_dint(buf, 16),
+                'rework_counter': get_dint(buf, 20),
+                'throughput':     get_real(buf, 24),
+                'yield':          get_real(buf, 28),
+                'uptime':         get_dint(buf, 32),
+            }
+
+        def pulse_trigger_bit(bit: int) -> None:
+            """Pulse a Cmd_* bit in DB4 byte 68 — Node-RED resets it after ~200 ms."""
+            s = snap7.client.Client()
+            s.connect(s7_host, 0, 1)
+            try:
+                buf = bytearray(1)
+                set_bool(buf, 0, bit, True)
+                s.db_write(4, 68, bytes(buf))
+            finally:
+                s.disconnect()
+
+        def write_cycle_speed_factor(factor: float) -> None:
+            s = snap7.client.Client()
+            s.connect(s7_host, 0, 1)
+            try:
+                buf = bytearray(4)
+                set_real(buf, 0, factor)
+                s.db_write(4, 92, bytes(buf))
+            finally:
+                s.disconnect()
+
+        # 5a) Initial state — kept for diagnostic output on failure.
+        initial_snapshot = read_db1_snapshot()
+
+        # 5b) Stop the mock — poll DB1.State until it leaves RUNNING (1).
+        pulse_trigger_bit(2)  # Cmd_Stop
+        poll_deadline = time.time() + STOP_POLL_TIMEOUT
+        stopped_snapshot = None
+        while time.time() < poll_deadline:
+            snap = read_db1_snapshot()
+            if snap['state'] != 1:  # 0=IDLE, 1=RUNNING — anything but 1 is "stopped"
+                stopped_snapshot = snap
+                break
+            time.sleep(1)
+        else:
+            # If still RUNNING after the budget, capture anyway — the
+            # assertion below will surface the actual state for diagnostics.
+            stopped_snapshot = read_db1_snapshot()
+
+        # 5c) Configure 5× speed, start the mock.
+        write_cycle_speed_factor(5.0)
+        pulse_trigger_bit(1)  # Cmd_Start
+
+        # ── 6) Accelerated production for 30 s ────────────────────────
+        # The same window covers two purposes: (a) the ZKS state machine
+        # produces parts so KPIs move; (b) Telegraf has time to finish
+        # startup (S7 + MQTT connect) and publish at least one message
+        # before we check.
+        time.sleep(PRODUCTION_WAIT)
+
+        # 6a) Snapshot KPIs after the run.
+        running_snapshot = read_db1_snapshot()
+
+        # ── 7) Assertions: state, KPIs, and the MQTT chain ────────────
+        assert running_snapshot['state'] != stopped_snapshot['state'], (
+            f'Machine.State did not change after Cmd_Start: '
+            f"stopped={stopped_snapshot['state']}, running={running_snapshot['state']}, "
+            f"initial={initial_snapshot['state']}"
+        )
+
+        kpi_keys = (
+            'part_counter', 'ok_counter', 'nok_counter', 'scrap_counter',
+            'rework_counter', 'throughput', 'yield', 'uptime',
+        )
+        changed = [k for k in kpi_keys if running_snapshot[k] != stopped_snapshot[k]]
+        assert changed, (
+            'no KPI changed after 30 s of 5× production. '
+            f'stopped={ {k: stopped_snapshot[k] for k in kpi_keys} }, '
+            f'running={ {k: running_snapshot[k] for k in kpi_keys} }'
+        )
+
+        # MQTT chain assertion: Telegraf must have published at least one
+        # message during the 30 s window. Validate one payload's shape.
+        assert received.qsize() > 0, (
+            'MQTT stream stayed silent during the 30 s production window '
+            '— Backend/Telegraf/MQTT chain is broken even though snap7 '
+            'confirms the ZKS mock is producing'
+        )
+        topic, payload = received.get_nowait()
         assert topic.startswith(topic_root), f'unexpected topic: {topic}'
         assert isinstance(payload, dict), f'payload not JSON object: {payload!r}'
         assert 'name' in payload, f'missing `name`: {payload}'
@@ -196,50 +325,10 @@ def test_zks_pipeline_publishes_to_mqtt(
         assert 'fields' in payload and payload['fields']
         ts = payload.get('timestamp')
         assert isinstance(ts, int), f'timestamp not int: {ts!r}'
-        # Sanity check: timestamp must be ms-since-epoch (so > 2020 in ms),
-        # not seconds. Caught by the mqttJsonTimestampUnits="1ms" default.
         assert ts > 1_500_000_000_000, f'timestamp not in ms: {ts}'
 
-        # Drain a few more to convince ourselves the stream is live,
-        # not just one stray packet.
-        seen_topics = {topic}
-        for _ in range(3):
-            try:
-                t, _ = received.get(timeout=15)
-                seen_topics.add(t)
-            except Exception:
-                break
-        assert any(t.startswith(topic_root) for t in seen_topics)
-
-        # ── 7) Fault injection via snap7 directly on DB4 ─────────────
-        # The mock auto-resets the trigger ~200 ms after seeing the flank,
-        # so we only assert the write call succeeds. The qualitative effect
-        # (one weld flagged NOK) is documented behaviour of the ZKS mock —
-        # asserting on it here would couple the test to the simulation's
-        # RNG seed.
-        s7_host, s7_port = zks_endpoint
-        s7 = snap7.client.Client()
-        s7.connect(s7_host, 0, 1, tcpport=s7_port)
-        try:
-            buf = bytearray(22)  # STRING[20] on the wire is 22 bytes
-            set_string(buf, 0, 'ERR_WELD_CURRENT_LOW', 20)
-            s7.db_write(4, 70, bytes(buf))  # Cmd_InjectFault, offset 70
-        finally:
-            s7.disconnect()
-
-        # Confirm the stream did not die after the write.
-        try:
-            received.get(timeout=15)
-        except Exception:
-            pytest.fail('MQTT stream went silent after fault injection')
-
-        # ── 8) /machine/stop should succeed and clear /machine/online ─
-        r = requests.get(
-            f'{backend_url}/machine/stop',
-            params={'machine_name': MACHINE_NAME},
-            timeout=15,
-        )
-        assert r.status_code == 200, r.text
+        # ── 8) Leave the mock in IDLE — courtesy for the next run ─────
+        pulse_trigger_bit(2)  # Cmd_Stop
     finally:
         client.loop_stop()
         try:

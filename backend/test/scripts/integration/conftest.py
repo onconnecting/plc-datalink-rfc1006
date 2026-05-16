@@ -56,6 +56,13 @@ def zks_endpoint() -> tuple[str, int]:
             f'Start it (see docs/machines-db-layout/zks-machine-mock/README.md) '
             f'or set ZKS_S7_HOST / ZKS_S7_PORT.'
         )
+    # snap7's underlying C call (Cli_ConnectTo) does not resolve hostnames —
+    # it expects an IPv4 literal. Resolve here so the e2e runner can dial the
+    # mock with ZKS_S7_HOST=host.docker.internal or any other hostname.
+    try:
+        host = socket.gethostbyname(host)
+    except socket.gaierror as exc:
+        pytest.skip(f'cannot resolve ZKS host {host!r}: {exc}')
     return host, port
 
 
@@ -147,13 +154,24 @@ def backend_url() -> str:
 
     deadline = time.time() + 120
     last_err: str | None = None
+    flask_up = False
     while time.time() < deadline:
         try:
-            r = requests.get(f'{url}/machine/online', timeout=3)
-            # 200 = machines listed, 404 = empty list — both prove Flask is up.
-            if r.status_code in (200, 404):
-                return url
-            last_err = f'HTTP {r.status_code}'
+            if not flask_up:
+                r = requests.get(f'{url}/machine/online', timeout=3)
+                if r.status_code in (200, 404):
+                    flask_up = True
+            if flask_up:
+                # Also probe a CouchDB-touching endpoint — covers the race where
+                # init-db.sh has not yet created the `datalink` DB by the time
+                # the backend is ready. /config/read/all hits CouchDB directly
+                # and returns 200 with [] once the DB exists.
+                r = requests.get(f'{url}/config/read/all', timeout=5)
+                if r.status_code == 200:
+                    return url
+                last_err = f'config/read/all returned HTTP {r.status_code}: {r.text[:120]}'
+            else:
+                last_err = f'HTTP {r.status_code}'
         except requests.exceptions.RequestException as exc:
             last_err = str(exc)
         time.sleep(2)

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] — 2026-05-16
+
+### Changed
+- E2E test `backend/test/scripts/integration/test_e2e_zks_mqtt.py` now drives the ZKS state machine directly via `python-snap7` (pulse `Cmd_Stop`, write `Cmd_CycleSpeedFactor = 5.0`, pulse `Cmd_Start`) and verifies the run by snapshotting DB1 (`Machine.State` + 8 KPIs) before and after a 25-s 5× production window. Passes when `Machine.State` transitions out of RUNNING and at least one KPI moves between the stopped and running snapshots. Replaces the prior fire-and-forget `Cmd_InjectFault` check. Total happy-path budget tightened to ≤ 60 s.
+
+### Fixed
+- `backend/test/scripts/integration/conftest.py`: the `zks_endpoint` fixture now resolves `ZKS_S7_HOST` to an IPv4 literal via `socket.gethostbyname` before returning. Required because `python-snap7`'s underlying `Cli_ConnectTo` does not perform DNS — it expects an IP literal. Without this, every E2E run with `ZKS_S7_HOST=host.docker.internal` (or any hostname) failed with `RuntimeError: TCP : Invalid address`.
+- `backend/test/scripts/integration/conftest.py`: the `backend_url` fixture additionally probes `/config/read/all` once Flask responds on `/machine/online`. Covers the boot race where the backend is up before `init-db.sh` has finished creating the `datalink` database; without this the first request from the E2E test would hit a `404 Object Not Found` from CouchDB.
+
+### Added
+- `backend/test/scripts/integration/mosquitto.conf`: enable `log_type subscribe / unsubscribe / notice` so MQTT subscribe/publish activity during an E2E run can be diagnosed from broker logs without rebuilding the image.
+- `README.md`: Testing section documenting the two test compose stacks (`dc-plc-datalink-rfc1006-test.yml` for unit suites, `dc-plc-datalink-rfc1006-e2e.yml` for the full ZKS pipeline), per-layer entry points, mandatory `down -v --remove-orphans` + image-rm cleanup, and the unit-vs-integration trigger policy.
+- `docs/features/test-strategy/scope.md`: marks Phase 1 acceptance criteria as done, documents the Phase 2 sprint (snap7-driven snapshot sequence, skill-integration policy, post-tool-use hooks), and reconciles the on-disk `unit/` vs `integration/` directory naming with the new taxonomy.
+
 ## [Unreleased] — 2026-05-15
 
 ### Security

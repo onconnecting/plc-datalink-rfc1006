@@ -98,6 +98,55 @@ ruff format src test
 ruff check --fix src test && ruff format src test
 ```
 
+### Testing
+Tests run inside dedicated containers — no local Python venv or Node install is required. The canonical entry points live in [`dc-plc-datalink-rfc1006-test.yml`](dc-plc-datalink-rfc1006-test.yml) (unit suites per layer) and [`dc-plc-datalink-rfc1006-e2e.yml`](dc-plc-datalink-rfc1006-e2e.yml) (full integration against the [ZKS machine mock](docs/machines-db-layout/zks-machine-mock/README.md)).
+
+#### Unit tests — fast, no external dependencies
+```bash
+# Build the three test images once (after Dockerfile.test or deps change):
+docker compose -f dc-plc-datalink-rfc1006-test.yml build
+
+# Per-layer runs:
+docker compose -f dc-plc-datalink-rfc1006-test.yml run --rm backend-test
+docker compose -f dc-plc-datalink-rfc1006-test.yml run --rm frontend-test
+docker compose -f dc-plc-datalink-rfc1006-test.yml run --rm database-test
+
+# Cleanup after every run (mandatory):
+docker compose -f dc-plc-datalink-rfc1006-test.yml down -v --remove-orphans
+docker image rm -f \
+  plc-datalink-rfc1006-backend-test:dev \
+  plc-datalink-rfc1006-frontend-test:dev \
+  plc-datalink-rfc1006-database-test:dev
+```
+
+| Layer | Framework | Tests |
+|---|---|---|
+| Backend | pytest + pytest-mock + requests-mock | `backend/test/scripts/unit/` (model, routes, services) |
+| Frontend | Jest + jest-preset-angular | `frontend/test/unit/` (components, services, validators) |
+| Database | pytest + testcontainers[couchdb] | `database/test/python/` (bootstrap + doc CRUD) |
+
+#### Integration test — full pipeline against ZKS machine mock
+The integration suite drives the ZKS mock's state machine via S7/RFC1006 and validates that backend → Telegraf → MQTT delivers a moving picture.
+
+**Preconditions:** the [ZKS machine mock](docs/machines-db-layout/zks-machine-mock/README.md) must be running on the host (`make up` in its own repo). When the mock is unreachable on `host.docker.internal:102`, every ZKS-bound test self-skips — no false fails on a workstation without it.
+
+```bash
+docker compose -f dc-plc-datalink-rfc1006-e2e.yml build
+docker compose -f dc-plc-datalink-rfc1006-e2e.yml run --rm backend-e2e-runner
+
+# Cleanup:
+docker compose -f dc-plc-datalink-rfc1006-e2e.yml down -v --remove-orphans
+docker image rm -f \
+  plc-datalink-rfc1006-backend-e2e:dev \
+  plc-datalink-rfc1006-database-e2e:dev
+```
+
+#### Trigger policy
+- **Unit suite per layer** runs on every edit to `backend/src|config/`, `frontend/src/`, or `database/config/` — enforced both by the implementation skills (`/03-backend`, `/04-frontend`, `/05-database`) and by the PostToolUse hook in [`.claude/settings.json`](.claude/settings.json) (script: [`.claude/hooks/run-tests-on-edit.sh`](.claude/hooks/run-tests-on-edit.sh)).
+- **Integration suite** runs at requirement-completion — when all acceptance criteria in `docs/features/<name>/scope.md` are ticked — triggered by `/06-qa` or the closing implementation skill. Not hooked, because the ZKS round-trip is too slow per edit.
+
+See [`docs/features/test-strategy/scope.md`](docs/features/test-strategy/scope.md) for the full taxonomy and acceptance criteria.
+
 #### Containers (DEV and PROD)
 The image source differs between DEV (local registry, tag `dev`) and PROD (ACR, tag from `IMAGE_TAG`); names, hostnames, ports, and volumes are identical.
 
