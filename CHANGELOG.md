@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - E2E test `backend/test/scripts/integration/test_e2e_zks_mqtt.py` now drives the ZKS state machine directly via `python-snap7` (pulse `Cmd_Stop`, write `Cmd_CycleSpeedFactor = 5.0`, pulse `Cmd_Start`) and verifies the run by snapshotting DB1 (`Machine.State` + 8 KPIs) before and after a 25-s 5× production window. Passes when `Machine.State` transitions out of RUNNING and at least one KPI moves between the stopped and running snapshots. Replaces the prior fire-and-forget `Cmd_InjectFault` check. Total happy-path budget tightened to ≤ 60 s.
+- `backend/test/scripts/integration/test_e2e_zks_mqtt.py`: capture the mock's `Machine.State` and `Cmd_CycleSpeedFactor` before the first `db_write` and restore both in a `finally` block — runs on success and failure paths. Replaces the previous teardown that always forced the mock into IDLE with `Cmd_CycleSpeedFactor = 5.0`. Restore is best-effort: snap7 errors during teardown are swallowed so they cannot mask the actual test result. Scope: `docs/features/e2e-restore-pre-test-state/scope.md`.
 
 ### Fixed
 - `backend/test/scripts/integration/conftest.py`: the `zks_endpoint` fixture now resolves `ZKS_S7_HOST` to an IPv4 literal via `socket.gethostbyname` before returning. Required because `python-snap7`'s underlying `Cli_ConnectTo` does not perform DNS — it expects an IP literal. Without this, every E2E run with `ZKS_S7_HOST=host.docker.internal` (or any hostname) failed with `RuntimeError: TCP : Invalid address`.
@@ -17,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `backend/test/scripts/integration/mosquitto.conf`: enable `log_type subscribe / unsubscribe / notice` so MQTT subscribe/publish activity during an E2E run can be diagnosed from broker logs without rebuilding the image.
 - `README.md`: Testing section documenting the two test compose stacks (`dc-plc-datalink-rfc1006-test.yml` for unit suites, `dc-plc-datalink-rfc1006-e2e.yml` for the full ZKS pipeline), per-layer entry points, mandatory `down -v --remove-orphans` + image-rm cleanup, and the unit-vs-integration trigger policy.
 - `docs/features/test-strategy/scope.md`: marks Phase 1 acceptance criteria as done, documents the Phase 2 sprint (snap7-driven snapshot sequence, skill-integration policy, post-tool-use hooks), and reconciles the on-disk `unit/` vs `integration/` directory naming with the new taxonomy.
+- `docs/features/e2e-restore-pre-test-state/scope.md`: scope for restoring the ZKS mock's pre-test state (Machine.State + Cmd_CycleSpeedFactor) after the E2E run, so parallel demo/debug sessions on the mock are not perturbed.
 
 ## [Unreleased] — 2026-05-15
 

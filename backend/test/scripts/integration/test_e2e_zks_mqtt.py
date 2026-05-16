@@ -33,8 +33,11 @@ Verified flow (per docs/features/test-strategy/scope.md, Section 4):
        f. Assert Machine.State changed AND at least one KPI moved between
           "stopped" and "running" snapshots.
   7. Confirm the MQTT stream stayed alive during the 30-s run.
-  8. Cleanup: pulse Cmd_Stop, GET /machine/stop, GET /config/remove. Mock
-     ends in IDLE, CouchDB clean.
+  8. Cleanup: restore the mock to its pre-test state (Machine.State +
+     Cmd_CycleSpeedFactor captured in step 5a), then GET /machine/stop,
+     GET /config/remove. The mock ends in whatever state it was in before
+     the test started — not forced to IDLE — so parallel demo sessions on
+     the Node-RED dashboard are not perturbed. CouchDB clean either way.
 
 Total happy-path budget is ≤ 60 s — the 30-s production wait dominates;
 all other timeouts are tightly set so a regression manifests as a failure,
@@ -260,75 +263,110 @@ def test_zks_state_and_kpi_change(
             finally:
                 s.disconnect()
 
-        # 5a) Initial state — kept for diagnostic output on failure.
+        def read_cycle_speed_factor() -> float:
+            s = snap7.client.Client()
+            s.connect(s7_host, 0, 1)
+            try:
+                buf = s.db_read(4, 92, 4)
+            finally:
+                s.disconnect()
+            return get_real(buf, 0)
+
+        # 5a) Pre-test snapshot — used both for diagnostic output and to
+        # restore the mock's State + Cmd_CycleSpeedFactor in the finally
+        # block below. Capture BEFORE any db_write so we never write back
+        # a value the test itself produced.
         initial_snapshot = read_db1_snapshot()
+        pre_state = initial_snapshot['state']
+        pre_speed = read_cycle_speed_factor()
 
-        # 5b) Stop the mock — poll DB1.State until it leaves RUNNING (1).
-        pulse_trigger_bit(2)  # Cmd_Stop
-        poll_deadline = time.time() + STOP_POLL_TIMEOUT
-        stopped_snapshot = None
-        while time.time() < poll_deadline:
-            snap = read_db1_snapshot()
-            if snap['state'] != 1:  # 0=IDLE, 1=RUNNING — anything but 1 is "stopped"
-                stopped_snapshot = snap
-                break
-            time.sleep(1)
-        else:
-            # If still RUNNING after the budget, capture anyway — the
-            # assertion below will surface the actual state for diagnostics.
-            stopped_snapshot = read_db1_snapshot()
+        try:
+            # 5b) Stop the mock — poll DB1.State until it leaves RUNNING (1).
+            pulse_trigger_bit(2)  # Cmd_Stop
+            poll_deadline = time.time() + STOP_POLL_TIMEOUT
+            stopped_snapshot = None
+            while time.time() < poll_deadline:
+                snap = read_db1_snapshot()
+                if snap['state'] != 1:  # 0=IDLE, 1=RUNNING — anything but 1 is "stopped"
+                    stopped_snapshot = snap
+                    break
+                time.sleep(1)
+            else:
+                # If still RUNNING after the budget, capture anyway — the
+                # assertion below will surface the actual state for diagnostics.
+                stopped_snapshot = read_db1_snapshot()
 
-        # 5c) Configure 5× speed, start the mock.
-        write_cycle_speed_factor(5.0)
-        pulse_trigger_bit(1)  # Cmd_Start
+            # 5c) Configure 5× speed, start the mock.
+            write_cycle_speed_factor(5.0)
+            pulse_trigger_bit(1)  # Cmd_Start
 
-        # ── 6) Accelerated production for 30 s ────────────────────────
-        # The same window covers two purposes: (a) the ZKS state machine
-        # produces parts so KPIs move; (b) Telegraf has time to finish
-        # startup (S7 + MQTT connect) and publish at least one message
-        # before we check.
-        time.sleep(PRODUCTION_WAIT)
+            # ── 6) Accelerated production for 30 s ────────────────────
+            # The same window covers two purposes: (a) the ZKS state
+            # machine produces parts so KPIs move; (b) Telegraf has time
+            # to finish startup (S7 + MQTT connect) and publish at least
+            # one message before we check.
+            time.sleep(PRODUCTION_WAIT)
 
-        # 6a) Snapshot KPIs after the run.
-        running_snapshot = read_db1_snapshot()
+            # 6a) Snapshot KPIs after the run.
+            running_snapshot = read_db1_snapshot()
 
-        # ── 7) Assertions: state, KPIs, and the MQTT chain ────────────
-        assert running_snapshot['state'] != stopped_snapshot['state'], (
-            f'Machine.State did not change after Cmd_Start: '
-            f"stopped={stopped_snapshot['state']}, running={running_snapshot['state']}, "
-            f"initial={initial_snapshot['state']}"
-        )
+            # ── 7) Assertions: state, KPIs, and the MQTT chain ────────
+            assert running_snapshot['state'] != stopped_snapshot['state'], (
+                f'Machine.State did not change after Cmd_Start: '
+                f"stopped={stopped_snapshot['state']}, running={running_snapshot['state']}, "
+                f"initial={initial_snapshot['state']}"
+            )
 
-        kpi_keys = (
-            'part_counter', 'ok_counter', 'nok_counter', 'scrap_counter',
-            'rework_counter', 'throughput', 'yield', 'uptime',
-        )
-        changed = [k for k in kpi_keys if running_snapshot[k] != stopped_snapshot[k]]
-        assert changed, (
-            'no KPI changed after 30 s of 5× production. '
-            f'stopped={ {k: stopped_snapshot[k] for k in kpi_keys} }, '
-            f'running={ {k: running_snapshot[k] for k in kpi_keys} }'
-        )
+            kpi_keys = (
+                'part_counter', 'ok_counter', 'nok_counter', 'scrap_counter',
+                'rework_counter', 'throughput', 'yield', 'uptime',
+            )
+            changed = [k for k in kpi_keys if running_snapshot[k] != stopped_snapshot[k]]
+            assert changed, (
+                'no KPI changed after 30 s of 5× production. '
+                f'stopped={ {k: stopped_snapshot[k] for k in kpi_keys} }, '
+                f'running={ {k: running_snapshot[k] for k in kpi_keys} }'
+            )
 
-        # MQTT chain assertion: Telegraf must have published at least one
-        # message during the 30 s window. Validate one payload's shape.
-        assert received.qsize() > 0, (
-            'MQTT stream stayed silent during the 30 s production window '
-            '— Backend/Telegraf/MQTT chain is broken even though snap7 '
-            'confirms the ZKS mock is producing'
-        )
-        topic, payload = received.get_nowait()
-        assert topic.startswith(topic_root), f'unexpected topic: {topic}'
-        assert isinstance(payload, dict), f'payload not JSON object: {payload!r}'
-        assert 'name' in payload, f'missing `name`: {payload}'
-        assert 'tags' in payload and 'machine' in payload['tags']
-        assert 'fields' in payload and payload['fields']
-        ts = payload.get('timestamp')
-        assert isinstance(ts, int), f'timestamp not int: {ts!r}'
-        assert ts > 1_500_000_000_000, f'timestamp not in ms: {ts}'
-
-        # ── 8) Leave the mock in IDLE — courtesy for the next run ─────
-        pulse_trigger_bit(2)  # Cmd_Stop
+            # MQTT chain assertion: Telegraf must have published at least
+            # one message during the 30 s window. Validate one payload's
+            # shape.
+            assert received.qsize() > 0, (
+                'MQTT stream stayed silent during the 30 s production window '
+                '— Backend/Telegraf/MQTT chain is broken even though snap7 '
+                'confirms the ZKS mock is producing'
+            )
+            topic, payload = received.get_nowait()
+            assert topic.startswith(topic_root), f'unexpected topic: {topic}'
+            assert isinstance(payload, dict), f'payload not JSON object: {payload!r}'
+            assert 'name' in payload, f'missing `name`: {payload}'
+            assert 'tags' in payload and 'machine' in payload['tags']
+            assert 'fields' in payload and payload['fields']
+            ts = payload.get('timestamp')
+            assert isinstance(ts, int), f'timestamp not int: {ts!r}'
+            assert ts > 1_500_000_000_000, f'timestamp not in ms: {ts}'
+        finally:
+            # ── 8) Restore the ZKS mock's pre-test state ──────────────
+            # Best-effort: any snap7 failure here must NOT mask the test
+            # outcome — if the mock is unhealthy by the time we get here,
+            # surfacing that as a restore error would hide whatever the
+            # actual assertion produced above. Runs on success AND on any
+            # assertion failure or exception in the block above.
+            try:
+                write_cycle_speed_factor(pre_speed)
+                # Treat State == 1 as RUNNING; any other value (IDLE,
+                # transitional) is restored as IDLE — we'd rather land
+                # in a clean known state than chase an undocumented
+                # transient.
+                want_running = pre_state == 1
+                pulse_trigger_bit(1 if want_running else 2)
+                restore_deadline = time.time() + STOP_POLL_TIMEOUT
+                while time.time() < restore_deadline:
+                    if (read_db1_snapshot()['state'] == 1) == want_running:
+                        break
+                    time.sleep(1)
+            except Exception:
+                pass
     finally:
         client.loop_stop()
         try:

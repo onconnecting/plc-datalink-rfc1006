@@ -223,6 +223,7 @@ _Ziel: durchgängiger Pfad **REST-API → CouchDB → supervisord/Telegraf → S
 - [ ] MQTT-Stream lebt nachweislich noch nach dem 30-s-Run (mindestens eine weitere Nachricht)
 - [ ] ZKS-Mock nicht erreichbar → `pytest.skip(...)` statt Fail (verifiziert 2026-05-16 ohne ZKS-Mock: 7 skipped, 0 failed)
 - [ ] Test räumt nach Erfolg **und** Fehler sauber auf (stop + remove, idempotent)
+- [ ] ZKS-Mock wird nach Testende auf seinen Vorzustand zurückgesetzt (`Machine.State` + `Cmd_CycleSpeedFactor`) — siehe Folge-Scope [e2e-restore-pre-test-state](../e2e-restore-pre-test-state/scope.md)
 
 ### Skill-Integration
 - [ ] Nach Edit/Write unter `backend/src/**` oder `backend/config/**` werden Backend-**Unit**-Tests vom Hook ausgelöst; Skill `/03-backend` weist Claude an, das Ergebnis im Chat zu reporten
