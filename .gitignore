@@ -30,8 +30,18 @@ frontend-next/dist/
 *.log
 .DS_Store
 
-# Ignore Claude Code configuration
-.claude/
+# Claude Code configuration
+# Ignore everything under .claude/ by default …
+.claude/*
+# … but track the project-shared parts (skills, rules, hooks, settings.json).
+# Per-developer state (projects/, todos/, cache/, local.settings.json) stays ignored
+# because it never appears at .claude/<dir>/ but elsewhere or as personalised files.
+!.claude/skills/
+!.claude/rules/
+!.claude/hooks/
+!.claude/settings.json
+# Local overrides remain per-developer.
+.claude/settings.local.json
 
 # Ignore internal design docs
 docs/design/onconnecting-ci/

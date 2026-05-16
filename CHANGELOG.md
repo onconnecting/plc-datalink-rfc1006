@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `README.md`: Testing section documenting the two test compose stacks (`dc-plc-datalink-rfc1006-test.yml` for unit suites, `dc-plc-datalink-rfc1006-e2e.yml` for the full ZKS pipeline), per-layer entry points, mandatory `down -v --remove-orphans` + image-rm cleanup, and the unit-vs-integration trigger policy.
 - `docs/features/test-strategy/scope.md`: marks Phase 1 acceptance criteria as done, documents the Phase 2 sprint (snap7-driven snapshot sequence, skill-integration policy, post-tool-use hooks), and reconciles the on-disk `unit/` vs `integration/` directory naming with the new taxonomy.
 - `docs/features/e2e-restore-pre-test-state/scope.md`: scope for restoring the ZKS mock's pre-test state (Machine.State + Cmd_CycleSpeedFactor) after the E2E run, so parallel demo/debug sessions on the mock are not perturbed.
+- `.claude/` is now partially tracked: project-shared `skills/`, `rules/`, `hooks/`, and `settings.json` live in git so every contributor gets the same delivery workflow, conventions, PostToolUse hook, and tool-permission allowlist. Per-developer state (`projects/`, `todos/`, `cache/`, `settings.local.json`) stays ignored. `.gitignore` updated accordingly (`.claude/*` blanket-ignore plus targeted `!`-overrides).
 
 ## [Unreleased] — 2026-05-15
 
