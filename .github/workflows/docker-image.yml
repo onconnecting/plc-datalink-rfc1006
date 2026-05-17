@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}      
       - name: Verify if ACR exists
@@ -47,7 +47,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}      
       - name: Verify if ACR exists
@@ -71,7 +71,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}      
       - name: Verify if ACR exists
