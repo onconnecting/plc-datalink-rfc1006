@@ -1,4 +1,4 @@
-FROM couchdb:3.3.3
+FROM couchdb:3.5.1
 
 # Copy the custom entrypoint script
 COPY config/database-entrypoint.sh /database-entrypoint.sh
